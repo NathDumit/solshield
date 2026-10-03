@@ -717,7 +717,9 @@
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getLatestBlockhash", params: [{ commitment: "finalized" }] }) });
       const blockhash = (await r.json()).result.value.blockhash;
       const mensagem = montarTransferencia(p.de, p.para, p.valor, blockhash);
-      const resp = await window.solana.request({ method: "signAndSendTransaction", params: { message: b58enc(mensagem) } });
+      // A Phantom espera a transação completa: 1 assinatura (ainda em branco, 64 zeros) + a mensagem
+      const transacao = [1, ...new Array(64).fill(0), ...mensagem];
+      const resp = await window.solana.request({ method: "signAndSendTransaction", params: { message: b58enc(transacao) } });
       const sig = resp.signature || resp;
       $("txid").value = sig;
       $("msg").innerHTML = `✔ Enviada na Devnet. <a href="https://explorer.solana.com/tx/${encodeURIComponent(sig)}?cluster=devnet" target="_blank" rel="noopener">Ver no explorador</a>`;
