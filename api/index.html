@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SolShield · Firewall da carteira</title>
+<style>
+  :root {
+    --bg: #05060b; --panel: #0c0f18; --panel2: #121724; --line: rgba(255,255,255,.08);
+    --txt: #eef0f7; --mut: #8a90a8;
+    --purple: #9945ff; --green: #14f195; --yellow: #ffc83d; --red: #ff2d55;
+    --accent: var(--mut);
+    --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body.s-green  { --accent: var(--green); }
+  body.s-yellow { --accent: var(--yellow); }
+  body.s-red    { --accent: var(--red); }
+  body {
+    margin: 0; min-height: 100vh; color: var(--txt); font-family: var(--font); background: var(--bg);
+    background-image:
+      radial-gradient(700px 420px at 8% -8%, rgba(153,69,255,.32), transparent 60%),
+      radial-gradient(700px 420px at 96% 0%, rgba(20,241,149,.13), transparent 60%),
+      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+    background-size: auto, auto, 44px 44px, 44px 44px; background-attachment: fixed;
+    transition: background-color .4s;
+  }
+  .app { max-width: 1180px; margin: 0 auto; padding: 22px 18px 48px; }
+
+  /* Topo */
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand svg { width: 52px; height: 52px; filter: drop-shadow(0 0 14px rgba(153,69,255,.65)); }
+  .brand h1 { margin: 0; font-size: 1.7rem; letter-spacing: -.5px; font-weight: 800; line-height: 1; }
+  .brand h1 span { background: linear-gradient(90deg, var(--purple), var(--green)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .brand small { display: block; margin-top: 5px; color: var(--mut); font-size: .85rem; letter-spacing: .4px; }
+  .tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; font-size: .75rem; color: var(--mut); padding: 7px 13px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); }
+  .pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--mut); }
+  .pill.on i { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .pill.off i { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+  .demo { border: 0; cursor: pointer; padding: 11px 18px; border-radius: 12px; color: #fff; font-weight: 700; font-size: .92rem; background: linear-gradient(135deg, var(--purple), #5b36e8); box-shadow: 0 8px 26px rgba(153,69,255,.4); transition: .15s; }
+  .demo:hover { transform: translateY(-2px); }
+  .demo:disabled { opacity: .55; cursor: wait; transform: none; }
+
+  .grid { display: grid; grid-template-columns: 440px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } .popupcol { max-width: 460px; margin: 0 auto; width: 100%; } }
+
+  .narra { min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin-bottom: 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); font-size: .88rem; color: var(--mut); }
+  .narra b { color: var(--txt); }
+  .narra .n { flex: none; width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, var(--purple), var(--green)); color: #05060b; font-weight: 800; font-size: .78rem; display: grid; place-items: center; }
+
+  /* Pop-up */
+  .popup { background: var(--panel); border: 1px solid var(--line); border-radius: 28px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.02); transition: box-shadow .4s, border-color .4s; }
+  body.s-green .popup  { box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 60px rgba(20,241,149,.15); border-color: rgba(20,241,149,.25); }
+  body.s-yellow .popup { box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 60px rgba(255,200,61,.15); border-color: rgba(255,200,61,.25); }
+  body.s-red .popup    { box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 70px rgba(255,45,85,.25); border-color: rgba(255,45,85,.4); }
+  .phead { display: flex; justify-content: space-between; align-items: center; padding: 15px 18px; border-bottom: 1px solid var(--line); gap: 10px; }
+  .phead .wl { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: conic-gradient(from 200deg, var(--purple), var(--green), var(--purple)); }
+  .phead small { display: block; color: var(--mut); font-family: var(--mono); font-weight: 400; font-size: .72rem; }
+  .site { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel2); font-family: var(--mono); font-size: .78rem; max-width: 52%; }
+  .site span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  .pbody { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+
+  label.l { font-size: .7rem; letter-spacing: 1.3px; text-transform: uppercase; color: var(--mut); font-weight: 700; }
+  .row { display: flex; gap: 8px; margin-top: 8px; }
+  input { flex: 1; min-width: 0; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--line); background: #070910; color: var(--txt); font-size: 1rem; font-family: var(--mono); outline: none; transition: .2s; }
+  input:focus { border-color: var(--purple); box-shadow: 0 0 0 4px rgba(153,69,255,.2); }
+  .go { padding: 0 16px; border: 0; border-radius: 12px; color: #fff; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, var(--purple), #6a3df0); box-shadow: 0 8px 22px rgba(153,69,255,.35); white-space: nowrap; transition: .15s; }
+  .go:hover { transform: translateY(-1px); }
+  .go:disabled { opacity: .6; cursor: wait; transform: none; }
+  .quick { display: flex; gap: 8px; margin-top: 10px; }
+  .qk { flex: 1; padding: 9px 4px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--mut); font-weight: 600; font-size: .82rem; cursor: pointer; transition: .15s; }
+  .qk:hover { color: var(--txt); }
+  .qk.green.on  { color: var(--green);  border-color: var(--green);  background: rgba(20,241,149,.1); }
+  .qk.yellow.on { color: var(--yellow); border-color: var(--yellow); background: rgba(255,200,61,.1); }
+  .qk.red.on    { color: var(--red);    border-color: var(--red);    background: rgba(255,45,85,.1); }
+
+  .prev { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); }
+  .prev .pv { flex: 0 0 92px; }
+  .prev .go { width: 100%; margin-top: 8px; padding: 12px; }
+  .prev small { display: block; margin-top: 7px; color: var(--mut); font-size: .72rem; line-height: 1.4; }
+  #msg a { color: var(--green); }
+
+  /* Estado ocioso / scanner */
+  .idle { text-align: center; padding: 26px 10px; color: var(--mut); }
+  .idle .big { font-size: 2.6rem; opacity: .9; }
+  .idle p { margin: 8px 0 0; font-size: .9rem; line-height: 1.5; }
+  .scan { text-align: center; padding: 24px 10px; }
+  .radar { width: 92px; height: 92px; margin: 0 auto 16px; border-radius: 50%; border: 2px solid rgba(153,69,255,.5); position: relative; background: radial-gradient(circle, rgba(153,69,255,.15), transparent 70%); }
+  .radar::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(20,241,149,.7), transparent 30%); animation: giro 1.1s linear infinite; }
+  .radar::after { content: ""; position: absolute; inset: 14px; border-radius: 50%; border: 1px dashed rgba(255,255,255,.2); }
+  .scan b { display: block; font-size: 1rem; }
+  .scan small { color: var(--mut); display: block; margin-top: 6px; min-height: 1.3em; }
+  .pg { height: 6px; border-radius: 9px; background: rgba(255,255,255,.08); margin-top: 14px; overflow: hidden; }
+  .pg i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--purple), var(--green)); transition: width .45s; }
+
+  /* Resultado */
+  .res { display: flex; flex-direction: column; gap: 12px; animation: surge .45s cubic-bezier(.2,1.4,.4,1); }
+  @keyframes surge { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
+  .banner { border-radius: 18px; padding: 16px; background: color-mix(in srgb, var(--accent) 9%, var(--panel2)); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-left: 6px solid var(--accent); display: flex; gap: 14px; align-items: center; }
+  .gauge { flex: none; width: 118px; position: relative; }
+  .gauge svg { width: 100%; display: block; overflow: visible; }
+  .gauge .track { fill: none; stroke: rgba(255,255,255,.09); stroke-width: 12; stroke-linecap: round; }
+  .gauge .fill { fill: none; stroke: var(--accent); stroke-width: 12; stroke-linecap: round; stroke-dasharray: 251.3; stroke-dashoffset: 251.3; transition: stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1); filter: drop-shadow(0 0 6px var(--accent)); }
+  .gauge .num { position: absolute; left: 0; right: 0; bottom: 2px; text-align: center; line-height: 1; }
+  .gauge .num b { font-size: 2rem; font-weight: 800; color: var(--accent); }
+  .gauge .num small { display: block; font-size: .62rem; color: var(--mut); letter-spacing: 1px; margin-top: 3px; text-transform: uppercase; }
+  .banner h2 { margin: 0 0 4px; font-size: 1.15rem; color: var(--accent); }
+  .banner p { margin: 0; color: #c9cddd; font-size: .88rem; line-height: 1.45; }
+  .banner .lv { display: inline-block; margin-bottom: 6px; padding: 3px 9px; border-radius: 99px; font-size: .68rem; font-weight: 800; letter-spacing: 1.2px; color: #05060b; background: var(--accent); }
+
+  .card { border: 1px solid var(--line); border-radius: 16px; background: var(--panel2); padding: 14px; }
+  .card h3 { margin: 0 0 10px; font-size: .7rem; letter-spacing: 1.3px; text-transform: uppercase; color: var(--mut); font-weight: 700; display: flex; justify-content: space-between; }
+  .acao { display: flex; gap: 12px; align-items: flex-start; }
+  .acao .ic { flex: none; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-size: 1.2rem; background: color-mix(in srgb, var(--accent) 16%, transparent); }
+  .acao p { margin: 0; line-height: 1.5; font-size: .95rem; }
+  .acao code { display: inline-block; margin-top: 8px; padding: 4px 9px; border-radius: 8px; background: #070910; border: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); font-family: var(--mono); font-size: .78rem; font-weight: 700; }
+  .reasons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .reasons li { display: flex; gap: 10px; align-items: flex-start; font-size: .88rem; line-height: 1.4; padding: 9px 10px; border-radius: 10px; background: #070910; opacity: 0; transform: translateX(-8px); animation: entra .4s forwards; }
+  .reasons li em { flex: none; font-style: normal; font-size: .62rem; font-weight: 800; letter-spacing: .8px; padding: 3px 7px; border-radius: 6px; margin-top: 1px; }
+  .reasons .alto em  { background: rgba(255,45,85,.18);  color: var(--red); }
+  .reasons .medio em { background: rgba(255,200,61,.18); color: var(--yellow); }
+  .reasons .baixo em { background: rgba(138,144,168,.2); color: var(--mut); }
+  .reasons .ok em    { background: rgba(20,241,149,.16); color: var(--green); }
+  @keyframes entra { to { opacity: 1; transform: none; } }
+  .bal { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-family: var(--mono); }
+  .bal div small { display: block; font-family: var(--font); color: var(--mut); font-size: .68rem; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px; }
+  .bal b { font-size: 1.15rem; }
+  .bal .arrow { color: var(--mut); font-size: 1.3rem; }
+  .bal .depois b { color: var(--accent); }
+  .bbar { height: 7px; border-radius: 9px; background: rgba(255,255,255,.08); margin-top: 12px; overflow: hidden; }
+  .bbar i { display: block; height: 100%; width: 100%; background: var(--accent); border-radius: 9px; transition: width 1.1s ease .3s; box-shadow: 0 0 10px var(--accent); }
+  .fee { display: flex; justify-content: space-between; margin-top: 10px; font-size: .82rem; color: var(--mut); }
+  .fee b { color: var(--txt); font-family: var(--mono); font-weight: 600; }
+  .ilus { font-size: .68rem; color: var(--mut); text-align: right; margin-top: 6px; }
+  .actions { display: grid; grid-template-columns: 1fr 1.2fr; gap: 10px; }
+  .actions button { padding: 14px; border-radius: 13px; font-weight: 800; font-size: .98rem; cursor: pointer; border: 1px solid var(--line); transition: .15s; }
+  .rej { background: var(--panel2); color: var(--txt); }
+  .rej:hover { border-color: var(--txt); }
+  .sign { background: var(--accent); color: #05060b; border-color: transparent; }
+  .sign:disabled { background: #232636; color: #6d7186; cursor: not-allowed; }
+  #msg { text-align: center; font-size: .82rem; color: var(--mut); min-height: 1.2em; }
+
+  /* Dashboard */
+  .ic { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .dash { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .dhead { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+  .dhead h2 { margin: 0; font-size: 1.3rem; letter-spacing: -.3px; font-weight: 700; }
+  .dhead p { margin: 5px 0 0; color: var(--mut); font-size: .84rem; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); font-size: .74rem; color: var(--mut); font-weight: 600; }
+  .chip b { color: var(--txt); font-weight: 600; }
+  .live { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulso 2s infinite; }
+  @keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(20,241,149,.55); } 70% { box-shadow: 0 0 0 7px rgba(20,241,149,0); } 100% { box-shadow: 0 0 0 0 rgba(20,241,149,0); } }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 760px) { .kpis { grid-template-columns: 1fr 1fr; } }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .kpi .kh { display: flex; justify-content: space-between; align-items: center; color: var(--mut); font-size: .76rem; font-weight: 600; }
+  .kpi .ico { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--c); }
+  .kpi .val { font-size: 2.1rem; font-weight: 700; margin-top: 14px; letter-spacing: -1px; font-variant-numeric: tabular-nums; line-height: 1; transition: transform .3s; transform-origin: left; }
+  .kpi .val.pop { transform: scale(1.12); }
+  .kpi .val small { font-size: .9rem; color: var(--mut); font-weight: 600; letter-spacing: 0; margin-left: 5px; }
+  .kpi .sub { margin-top: 9px; font-size: .74rem; color: var(--mut); }
+  .kpi .sub b { color: var(--c); font-weight: 700; }
+  .kpi.hero { background: linear-gradient(145deg, rgba(153,69,255,.24), rgba(20,241,149,.06) 75%), var(--panel); border-color: rgba(153,69,255,.38); }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; min-width: 0; }
+  .ph { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .ph h3 { margin: 0; font-size: .92rem; font-weight: 600; }
+  .ph small { color: var(--mut); font-size: .72rem; }
+  .r2 { display: grid; grid-template-columns: 1.7fr 1fr; gap: 16px; }
+  .r2b { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (max-width: 760px) { .r2, .r2b { grid-template-columns: 1fr; } }
+
+  .chart svg { width: 100%; display: block; overflow: visible; }
+  .chart text { fill: var(--mut); font-size: 10px; font-family: var(--font); }
+  .vazio { color: var(--mut); font-size: .84rem; text-align: center; padding: 34px 10px; line-height: 1.5; }
+
+  .donutw { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; justify-content: center; }
+  .donut { width: 128px; height: 128px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(#232636 0 100%); transition: background .6s; flex: none; }
+  .donut > div { width: 92px; height: 92px; border-radius: 50%; background: var(--panel); display: grid; place-items: center; text-align: center; }
+  .donut b { font-size: 1.6rem; line-height: 1; font-variant-numeric: tabular-nums; } .donut small { display: block; font-size: .6rem; color: var(--mut); letter-spacing: 1px; text-transform: uppercase; margin-top: 3px; }
+  .leg { display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 120px; font-size: .8rem; }
+  .leg div { display: flex; align-items: center; gap: 8px; }
+  .leg i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .leg span { color: #c9cddd; flex: 1; } .leg b { font-variant-numeric: tabular-nums; } .leg em { font-style: normal; color: var(--mut); width: 38px; text-align: right; font-size: .74rem; }
+
+  .pipe { display: flex; }
+  .st { flex: 1; text-align: center; position: relative; font-size: .73rem; color: var(--mut); font-weight: 500; }
+  .si { width: 40px; height: 40px; border-radius: 50%; margin: 0 auto 9px; display: grid; place-items: center; border: 1px solid var(--line); background: var(--panel2); transition: .25s; position: relative; z-index: 1; }
+  .st:not(:last-child)::after { content: ""; position: absolute; top: 19px; left: calc(50% + 26px); right: calc(-50% + 26px); height: 2px; background: var(--line); transition: .25s; }
+  .st.done::after { background: rgba(20,241,149,.55); }
+  .st.on .si { color: var(--green); border-color: var(--green); box-shadow: 0 0 0 5px rgba(20,241,149,.12); }
+  .st.done .si { color: var(--green); border-color: rgba(20,241,149,.5); background: rgba(20,241,149,.08); }
+  .st.red .si { color: var(--red); border-color: var(--red); background: rgba(255,45,85,.1); box-shadow: 0 0 0 5px rgba(255,45,85,.14); }
+  .st.on, .st.done, .st.red { color: var(--txt); }
+
+  .tw { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  th { text-align: left; color: var(--mut); font-weight: 600; font-size: .66rem; letter-spacing: .9px; text-transform: uppercase; padding: 0 10px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 12px 10px; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: middle; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: rgba(255,255,255,.025); }
+  tr.new td { animation: flash 1.4s; }
+  @keyframes flash { 0% { background: rgba(153,69,255,.28); } 100% { background: transparent; } }
+  .mono { font-family: var(--mono); }
+  td.mut { color: var(--mut); }
+  td.cut { max-width: 118px; overflow: hidden; text-overflow: ellipsis; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; font-size: .68rem; font-weight: 700; letter-spacing: .4px; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); }
+  .badge i { width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
+  .sbar { display: inline-block; width: 44px; height: 5px; border-radius: 5px; background: rgba(255,255,255,.08); overflow: hidden; vertical-align: middle; margin-right: 8px; }
+  .sbar i { display: block; height: 100%; background: var(--c); }
+
+  .fac { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 32px; }
+  @media (max-width: 760px) { .fac { grid-template-columns: 1fr; } }
+  .fac .ft { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; font-size: .79rem; line-height: 1.35; }
+  .fac .ft span { color: #c9cddd; } .fac .ft b { font-family: var(--mono); color: var(--c); }
+  .fac .fb { height: 5px; border-radius: 5px; background: rgba(255,255,255,.07); overflow: hidden; }
+  .fac .fb i { display: block; height: 100%; background: var(--c); border-radius: 5px; }
+
+  /* Alerta crítico (bloqueio) */
+  #emergencia { display: none; position: fixed; inset: 0; z-index: 999; align-items: center; justify-content: center; padding: 20px; overflow-y: auto;
+    background: radial-gradient(700px 400px at 50% 0%, rgba(255,45,85,.18), transparent 70%), rgba(4,5,10,.84); backdrop-filter: blur(8px); }
+  #emergencia.ativo { display: flex; animation: fade .25s ease; }
+  .modal { width: 100%; max-width: 540px; background: var(--panel); border: 1px solid rgba(255,45,85,.35); border-top: 3px solid var(--red); border-radius: 18px; padding: 26px; box-shadow: 0 30px 90px rgba(0,0,0,.7), 0 0 60px rgba(255,45,85,.12); animation: sobe .35s cubic-bezier(.2,.9,.3,1); }
+  .modal .mh { display: flex; gap: 14px; align-items: center; }
+  .modal .mi { flex: none; width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center; color: var(--red); background: rgba(255,45,85,.12); border: 1px solid rgba(255,45,85,.3); }
+  .modal .mi .ic { width: 26px; height: 26px; }
+  .modal .mt small { color: var(--red); font-size: .7rem; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; }
+  .modal .mt h2 { margin: 3px 0 0; font-size: 1.45rem; letter-spacing: -.3px; }
+  .modal .score { margin-left: auto; text-align: right; flex: none; }
+  .modal .score b { display: block; font-size: 1.9rem; line-height: 1; color: var(--red); font-variant-numeric: tabular-nums; }
+  .modal .score span { font-size: .62rem; color: var(--mut); letter-spacing: 1px; text-transform: uppercase; }
+  .modal .lead { margin: 18px 0 16px; line-height: 1.55; color: #c9cddd; font-size: .96rem; }
+  .modal .lead strong { color: var(--txt); }
+  .modal h3 { margin: 0 0 10px; font-size: .7rem; letter-spacing: 1.3px; text-transform: uppercase; color: var(--mut); font-weight: 700; }
+  .modal .impact { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: #070910; border: 1px solid var(--line); font-family: var(--mono); }
+  .modal .impact small { display: block; font-family: var(--font); font-size: .66rem; letter-spacing: 1px; text-transform: uppercase; color: var(--mut); margin-bottom: 3px; }
+  .modal .impact b { font-size: 1.05rem; } .modal .impact .d b { color: var(--red); } .modal .impact .ar { color: var(--mut); }
+  .modal .lock { margin-top: 14px; font-size: .78rem; color: var(--mut); display: flex; gap: 8px; align-items: center; }
+  .modal .lock .ic { width: 15px; height: 15px; color: var(--green); }
+  .modal .mb { display: grid; grid-template-columns: 1.3fr 1fr; gap: 10px; margin-top: 20px; }
+  .modal .mb button { padding: 13px; border-radius: 12px; font-weight: 700; font-size: .95rem; cursor: pointer; transition: .15s; }
+  .modal .p { border: 0; background: var(--red); color: #fff; }
+  .modal .p:hover { filter: brightness(1.1); }
+  .modal .g { border: 1px solid var(--line); background: transparent; color: var(--txt); }
+  .modal .g:hover { border-color: var(--txt); }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sobe { from { opacity: 0; transform: translateY(16px) scale(.97); } to { opacity: 1; transform: none; } }
+  @keyframes giro { to { transform: rotate(360deg); } }
+  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: giro .7s linear infinite; vertical-align: -2px; margin-right: 6px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+<symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></symbol>
+<symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M22 12h-4M6 12H2M12 6V2M12 22v-4"/></symbol>
+<symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol>
+<symbol id="i-flask" viewBox="0 0 24 24"><path d="M10 2v7.5L4.5 19a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L14 9.5V2M8.5 2h7"/></symbol>
+<symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.3 19a10 10 0 1 1 17.4 0"/></symbol>
+</defs></svg>
+<div class="app">
+
+  <div class="top">
+    <div class="brand">
+      <svg viewBox="0 0 48 48" fill="none">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#9945ff"/><stop offset="1" stop-color="#14f195"/></linearGradient></defs>
+        <path d="M24 3 6 10v13c0 11 7.5 19 18 22 10.5-3 18-11 18-22V10L24 3Z" fill="url(#g)" opacity=".2" stroke="url(#g)" stroke-width="2.5"/>
+        <path d="m16 24 6 6 11-12" stroke="url(#g)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div><h1>Sol<span>Shield</span></h1><small>O FIREWALL DA SUA CARTEIRA · antes de você assinar</small></div>
+    </div>
+    <div class="tools">
+      <div class="pill" id="pill"><i></i><span id="pillTxt">verificando API…</span></div>
+      <button class="demo" id="demo">▶ Modo apresentação</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="popupcol">
+      <div class="narra" id="narra"><span class="n">i</span><span>Digite um ID, use os atalhos ou clique em <b>Modo apresentação</b>.</span></div>
+
+      <div class="popup">
+        <div class="phead">
+          <div class="wl" id="wl" style="cursor:pointer" title="Clique para conectar uma carteira Phantom"><div class="avatar"></div><div><span id="wNome">Carteira demo</span><small id="wAddr">7xKq…9fWe</small></div></div>
+          <div class="site"><i class="dot"></i><span id="siteTxt">aguardando…</span></div>
+        </div>
+        <div class="pbody">
+          <div>
+            <label class="l" for="txid">ID da transação</label>
+            <div class="row">
+              <input id="txid" placeholder="ex: tx_001" autocomplete="off" spellcheck="false">
+              <button class="go" id="btn">🛡️ Simular Assinatura</button>
+            </div>
+            <div class="quick">
+              <button class="qk green" data-tx="tx_001">✔ Seguro</button>
+              <button class="qk yellow" data-tx="tx_002">⚠ Alerta</button>
+              <button class="qk red" data-tx="tx_003">☠ Crítico</button>
+            </div>
+            <div class="prev">
+              <label class="l" for="pDest">Transferência protegida · Devnet</label>
+              <div class="row">
+                <input id="pDest" placeholder="carteira de destino" autocomplete="off" spellcheck="false">
+                <input id="pVal" class="pv" placeholder="SOL" inputmode="decimal" autocomplete="off">
+              </div>
+              <button class="go" id="pBtn">🛡️ Analisar antes de assinar</button>
+              <small>Usa a sua Phantom (Devnet). O SolShield consulta a rede e só libera a assinatura se o risco não for crítico.</small>
+            </div>
+          </div>
+
+          <div id="stage"></div>
+          <div id="msg"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash">
+      <div class="dhead">
+        <div>
+          <h2>Painel de proteção</h2>
+          <p>Assinaturas interceptadas e analisadas pelo firewall nesta sessão.</p>
+        </div>
+        <div class="chips">
+          <span class="chip"><i class="live"></i>Firewall <b>ativo</b></span>
+          <span class="chip">Rede <b>Solana Devnet</b></span>
+          <span class="chip"><b id="cTot">0</b> análises</span>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi" style="--c:var(--green)">
+          <div class="kh">Transações seguras<span class="ico"><svg class="ic"><use href="#i-check"/></svg></span></div>
+          <div class="val" id="kG">0</div><div class="sub" id="sG">Aguardando análises</div>
+        </div>
+        <div class="kpi" style="--c:var(--yellow)">
+          <div class="kh">Suspeitas<span class="ico"><svg class="ic"><use href="#i-alert"/></svg></span></div>
+          <div class="val" id="kY">0</div><div class="sub" id="sY">Aguardando análises</div>
+        </div>
+        <div class="kpi" style="--c:var(--red)">
+          <div class="kh">Bloqueadas<span class="ico"><svg class="ic"><use href="#i-ban"/></svg></span></div>
+          <div class="val" id="kR">0</div><div class="sub" id="sR">Aguardando análises</div>
+        </div>
+        <div class="kpi hero" style="--c:var(--green)">
+          <div class="kh">Fundos protegidos<span class="ico" style="--c:var(--purple)"><svg class="ic"><use href="#i-shield"/></svg></span></div>
+          <div class="val" id="kP">0.00<small>SOL</small></div><div class="sub" id="sP">Nenhum ataque interceptado</div>
+        </div>
+      </div>
+
+      <div class="r2">
+        <div class="panel">
+          <div class="ph"><h3>Risk Score por transação</h3><small>últimas 12 análises</small></div>
+          <div class="chart" id="chart"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>Distribuição</h3><small>por decisão</small></div>
+          <div class="donutw">
+            <div class="donut" id="donut"><div><span><b id="dTot">0</b><small>análises</small></span></div></div>
+            <div class="leg" id="leg"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><h3>Pipeline de análise</h3><small>acende em tempo real a cada transação</small></div>
+        <div class="pipe" id="pipe">
+          <div class="st"><div class="si"><svg class="ic"><use href="#i-target"/></svg></div>Interceptar</div>
+          <div class="st"><div class="si"><svg class="ic"><use href="#i-code"/></svg></div>Decodificar</div>
+          <div class="st"><div class="si"><svg class="ic"><use href="#i-flask"/></svg></div>Simular</div>
+          <div class="st"><div class="si"><svg class="ic"><use href="#i-gauge"/></svg></div>Risk Score</div>
+          <div class="st"><div class="si"><svg class="ic"><use href="#i-shield"/></svg></div>Decidir</div>
+        </div>
+      </div>
+
+      <div class="r2b">
+        <div class="panel">
+          <div class="ph"><h3>Atividade recente</h3><small>mais recentes primeiro</small></div>
+          <div class="tw" id="tbl"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>Principais fatores de risco</h3><small>nesta sessão</small></div>
+          <div class="fac" id="fac"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="emergencia">
+  <div class="modal" role="alertdialog" aria-labelledby="eTit">
+    <div class="mh">
+      <div class="mi"><svg class="ic"><use href="#i-ban"/></svg></div>
+      <div class="mt"><small>Alerta de segurança</small><h2 id="eTit">Transação bloqueada</h2></div>
+      <div class="score"><b id="eScore">97</b><span>Risco crítico</span></div>
+    </div>
+    <p class="lead"><strong>Não assine.</strong> <span id="eAcao"></span></p>
+    <h3>Por que o SolShield bloqueou</h3>
+    <ul class="reasons" id="eMot"></ul>
+    <div class="impact">
+      <div><small>Saldo atual</small><b id="eAntes">—</b></div><span class="ar">→</span>
+      <div class="d"><small>Se você assinasse</small><b id="eDepois">—</b></div>
+    </div>
+    <div class="lock"><svg class="ic"><use href="#i-shield"/></svg>Assinatura impedida pelo SolShield. Nada foi enviado à rede.</div>
+    <div class="mb"><button class="p" id="fechar">Rejeitar transação</button><button class="g" id="ver">Ver análise completa</button></div>
+  </div>
+</div>
+
+<script>
+  // Local (arquivo ou localhost) usa a API na porta 5000. Publicado (Vercel etc.) usa /api/score/ no mesmo domínio.
+  // Para apontar para outra API: abra a página com ?api=https://minha-api.com/api/score/
+  const LOCAL = ["localhost", "127.0.0.1", ""].includes(location.hostname);
+  const API = new URLSearchParams(location.search).get("api") || (LOCAL ? "http://localhost:5000/api/score/" : "/api/score/");
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  const TEXTOS = {
+    green:  { nivel: "RISCO BAIXO",   ico: "🟢", titulo: "Conexão segura",    msg: "Nenhum comportamento suspeito encontrado nas instruções desta transação.", icAcao: "✅" },
+    yellow: { nivel: "RISCO MÉDIO",   ico: "🟡", titulo: "Atenção redobrada", msg: "Encontramos comportamentos incomuns. Confira com calma antes de assinar.",       icAcao: "⚠️" },
+    red:    { nivel: "RISCO CRÍTICO", ico: "🔴", titulo: "Ameaça crítica",    msg: "Esta transação tem características de golpe. Não assine.",                       icAcao: "☠️" }
+  };
+  const NIVEL = { alto: "ALTO", medio: "MÉDIO", baixo: "BAIXO", ok: "OK" };
+
+  // Cenários de demonstração. Preenchem o que a API não enviar (aparece "ilustrativo")
+  const FIX = {
+    green: { site: "jup.ag", score: 8, tipo: "Transfer(0.05 SOL)", taxa: "0.000005 SOL", antes: 12.40, depois: 12.35,
+      acao: "Enviar 0.05 SOL para o programa verificado da Jupiter, para fazer a troca que você pediu.",
+      motivos: [{ nivel: "ok", texto: "Domínio verificado, com histórico longo de uso." }, { nivel: "ok", texto: "Contrato auditado e sem funções ocultas." }, { nivel: "ok", texto: "O valor bate com o que você escolheu na tela." }] },
+    yellow: { site: "swap-rewards.xyz", score: 54, tipo: "Approve(USDC, ilimitado)", taxa: "0.000005 SOL", antes: 12.40, depois: 12.35,
+      acao: "Dar permissão para este contrato movimentar seus tokens USDC, sem limite de valor.",
+      motivos: [{ nivel: "medio", texto: "Permissão ilimitada: o contrato poderá mover todo o seu USDC." }, { nivel: "medio", texto: "O site foi criado há apenas 12 dias." }, { nivel: "baixo", texto: "Poucos usuários já interagiram com este contrato." }] },
+    red: { site: "free-airdrop-sol.xyz", score: 97, tipo: "SetAuthority(dono da carteira)", taxa: "0.000005 SOL", antes: 12.40, depois: 0,
+      acao: "Entregar o controle total da sua carteira a um endereço desconhecido, que poderá esvaziá-la a qualquer momento.",
+      motivos: [{ nivel: "alto", texto: "Troca o dono da carteira: terceiros passam a controlar seus fundos." }, { nivel: "alto", texto: "O destino aparece em 14 denúncias de golpe." }, { nivel: "alto", texto: "O site imita um airdrop oficial (phishing)." }, { nivel: "medio", texto: "Cria pressa: \"oferta expira em 2 minutos\"." }] }
+  };
+  // Resposta usada só se a API estiver offline
+  const DEMO = { tx_001: { status: "Green" }, tx_002: { status: "Yellow" }, tx_003: { status: "Red" } };
+  const PASSOS = ["Interceptando a transação…", "Decodificando as instruções do contrato…", "Simulando o efeito na sua carteira…", "Calculando o Risk Score…", "Decidindo…"];
+
+  const stats = { green: 0, yellow: 0, red: 0, protegido: 0 };
+  let rodando = false;
+  let carteira = null;   // endereço da Phantom conectada (null = carteira demo)
+  const RPC_DEVNET = "https://api.devnet.solana.com";
+  const API_PREVER = API.replace(/score\/?$/, "prever");
+
+  function setApi(on) { $("pill").className = "pill " + (on ? "on" : "off"); $("pillTxt").textContent = on ? "API conectada · " + (LOCAL ? "localhost:5000" : location.host) : "API offline · modo demonstração"; }
+
+  async function consultar(id) {
+    try {
+      const r = await fetch(API + encodeURIComponent(id));
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const data = await r.json(); setApi(true); return { data, demo: false };
+    } catch (e) {
+      setApi(false);
+      const d = DEMO[id.toLowerCase()];
+      if (!d) throw new Error("API indisponível e sem cenário de demonstração para '" + id + "'.");
+      return { data: d, demo: true };
+    }
+  }
+
+  const nar = (n, html) => { $("narra").innerHTML = `<span class="n">${n}</span><span>${html}</span>`; };
+  function marcar(tx) { document.querySelectorAll(".qk").forEach(q => q.classList.toggle("on", q.dataset.tx === tx)); }
+  function pipe(i, estado) {
+    document.querySelectorAll(".st").forEach((s, k) => { s.className = "st" + (k < i ? " done" : k === i ? " on" : ""); });
+    if (estado === "fim") document.querySelectorAll(".st").forEach(s => s.className = "st done");
+    if (estado === "red") { document.querySelectorAll(".st").forEach(s => s.className = "st done"); document.querySelectorAll(".st")[4].className = "st red"; }
+  }
+  function resetPipe() { document.querySelectorAll(".st").forEach(s => s.className = "st"); }
+
+  function idle(txt) {
+    document.body.className = ""; $("siteTxt").textContent = "aguardando…";
+    $("stage").innerHTML = `<div class="idle"><div class="big">🛡️</div><p>${txt || "Nenhuma transação em análise.<br>Digite um ID e simule a assinatura."}</p></div>`;
+  }
+
+  function contar(el, ate, dur = 1100) {
+    const t0 = performance.now();
+    (function f(t) { const p = Math.min(1, (t - t0) / dur); el.textContent = Math.round(ate * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(f); })(t0);
+  }
+
+  async function scanner() {
+    $("stage").innerHTML = `<div class="scan"><div class="radar"></div><b id="sTit">Analisando…</b><small id="sSub"></small><div class="pg"><i id="sPg"></i></div></div>`;
+    for (let i = 0; i < PASSOS.length; i++) {
+      pipe(i); $("sSub").textContent = PASSOS[i]; $("sPg").style.width = ((i + 1) / PASSOS.length * 100) + "%";
+      await sleep(i === 4 ? 350 : 480);
+    }
+  }
+
+  const hist = [];
+  const COR = { green: "var(--green)", yellow: "var(--yellow)", red: "var(--red)" };
+  const LBL = { green: "Liberada", yellow: "Alerta", red: "Bloqueada" };
+
+  function atualizarDash(r) {
+    stats[r.status]++; stats.protegido += r.protegido;
+    hist.unshift({ ...r, hora: new Date() });
+    if (hist.length > 50) hist.pop();
+    renderDash();
+  }
+
+  function renderDash() {
+    const tot = stats.green + stats.yellow + stats.red;
+    const pc = n => tot ? Math.round(n / tot * 100) : 0;
+    const val = (id, txt) => { const e = $(id); if (e.dataset.v !== String(txt)) { e.dataset.v = txt; e.innerHTML = txt; e.classList.add("pop"); setTimeout(() => e.classList.remove("pop"), 300); } };
+
+    val("kG", stats.green); val("kY", stats.yellow); val("kR", stats.red);
+    val("kP", stats.protegido.toFixed(2) + "<small>SOL</small>");
+    $("sG").innerHTML = tot ? `<b>${pc(stats.green)}%</b> das análises liberadas` : "Aguardando análises";
+    $("sY").innerHTML = tot ? `<b>${pc(stats.yellow)}%</b> exigiram atenção` : "Aguardando análises";
+    $("sR").innerHTML = tot ? `<b>${pc(stats.red)}%</b> interceptadas antes de assinar` : "Aguardando análises";
+    $("sP").textContent = stats.red ? `Evitados em ${stats.red} bloqueio${stats.red > 1 ? "s" : ""}` : "Nenhum ataque interceptado";
+    $("cTot").textContent = tot; $("dTot").textContent = tot;
+
+    // Distribuição
+    const g = stats.green / (tot || 1) * 100, y = g + stats.yellow / (tot || 1) * 100;
+    $("donut").style.background = tot ? `conic-gradient(var(--green) 0 ${g}%, var(--yellow) ${g}% ${y}%, var(--red) ${y}% 100%)` : "conic-gradient(#232636 0 100%)";
+    $("leg").innerHTML = [["green", "Seguras"], ["yellow", "Suspeitas"], ["red", "Bloqueadas"]]
+      .map(([k, n]) => `<div><i style="background:${COR[k]}"></i><span>${n}</span><b>${stats[k]}</b><em>${pc(stats[k])}%</em></div>`).join("");
+
+    // Gráfico de Risk Score
+    const pts = hist.slice(0, 12).reverse();
+    if (!pts.length) {
+      $("chart").innerHTML = `<div class="vazio">Sem dados ainda.<br>Rode uma simulação ou o Modo apresentação para ver o Risk Score ao longo do tempo.</div>`;
+    } else {
+      const W = 600, H = 210, L = 6, R = 34, T = 10, B = 24, iw = W - L - R, ih = H - T - B;
+      const Y = s => T + (1 - Math.max(0, Math.min(100, s)) / 100) * ih;
+      const X = i => pts.length === 1 ? L + iw / 2 : L + i * iw / (pts.length - 1);
+      const band = (a, b, c) => `<rect x="${L}" y="${Y(b)}" width="${iw}" height="${Y(a) - Y(b)}" fill="${c}" opacity=".07"/>`;
+      const linha = pts.map((p, i) => (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(p.score).toFixed(1)).join(" ");
+      const area = `${linha} L${X(pts.length - 1).toFixed(1)} ${T + ih} L${X(0).toFixed(1)} ${T + ih} Z`;
+      const ult = pts[pts.length - 1];
+      $("chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}">
+        <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9945ff" stop-opacity=".35"/><stop offset="1" stop-color="#9945ff" stop-opacity="0"/></linearGradient></defs>
+        ${band(0, 35, "#14f195")}${band(35, 70, "#ffc83d")}${band(70, 100, "#ff2d55")}
+        ${[0, 35, 70, 100].map(v => `<line x1="${L}" x2="${L + iw}" y1="${Y(v)}" y2="${Y(v)}" stroke="rgba(255,255,255,.07)" stroke-dasharray="${v === 35 || v === 70 ? "4 4" : "0"}"/><text x="${L + iw + 8}" y="${Y(v) + 3}">${v}</text>`).join("")}
+        <path d="${area}" fill="url(#ag)"/>
+        <path d="${linha}" fill="none" stroke="#9945ff" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+        ${pts.map((p, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(p.score).toFixed(1)}" r="5.5" fill="${COR[p.status]}" stroke="#0e121c" stroke-width="2.5"/><text x="${X(i).toFixed(1)}" y="${H - 6}" text-anchor="middle">${esc(String(p.id).slice(0, 7))}</text>`).join("")}
+        <text x="${X(pts.length - 1).toFixed(1)}" y="${(Y(ult.score) - 12).toFixed(1)}" text-anchor="middle" style="fill:${COR[ult.status]};font-weight:700;font-size:12px">${ult.score}</text>
+      </svg>`;
+    }
+
+    // Tabela de atividade
+    $("tbl").innerHTML = !hist.length ? `<div class="vazio">Nenhuma transação analisada nesta sessão.</div>` :
+      `<table><thead><tr><th>Hora</th><th>Transação</th><th>Site</th><th>Instrução</th><th>Score</th><th>Decisão</th></tr></thead><tbody>` +
+      hist.slice(0, 7).map((h, i) => `<tr class="${i === 0 ? "new" : ""}" style="--c:${COR[h.status]}">
+        <td class="mut mono">${h.hora.toLocaleTimeString("pt-BR")}</td><td class="mono">${esc(h.id.length > 14 ? h.id.slice(0, 6) + "…" + h.id.slice(-4) : h.id)}</td><td class="cut mono">${esc(h.site)}</td><td class="cut mut mono">${esc(h.tipo)}</td>
+        <td><span class="sbar"><i style="width:${Math.max(0, Math.min(100, h.score))}%"></i></span><b class="mono">${esc(h.score)}</b></td>
+        <td><span class="badge"><i></i>${LBL[h.status]}</span></td></tr>`).join("") + `</tbody></table>`;
+
+    // Fatores de risco mais frequentes
+    const mapa = new Map();
+    hist.forEach(h => (h.motivos || []).forEach(m => { if (m.nivel === "alto" || m.nivel === "medio") { const e = mapa.get(m.texto) || { n: 0, nivel: m.nivel }; e.n++; mapa.set(m.texto, e); } }));
+    const top = [...mapa.entries()].sort((a, b) => b[1].n - a[1].n || (a[1].nivel === "alto" ? -1 : 1)).slice(0, 4);
+    $("fac").innerHTML = !top.length ? `<div class="vazio">Os fatores de risco detectados aparecerão aqui.</div>` :
+      top.map(([t, e]) => `<div style="--c:${e.nivel === "alto" ? "var(--red)" : "var(--yellow)"}"><div class="ft"><span>${esc(t)}</span><b>${e.n}×</b></div><div class="fb"><i style="width:${Math.round(e.n / hist.length * 100)}%"></i></div></div>`).join("");
+  }
+
+  async function simular(id, previa) {
+    if (previa) { id = "prévia"; marcar(""); }
+    else {
+      id = (id ?? $("txid").value).trim();
+      if (!id) { $("txid").focus(); return; }
+      $("txid").value = id; marcar(id.toLowerCase());
+    } $("msg").textContent = ""; $("emergencia").classList.remove("ativo");
+    const btn = $("btn"); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Analisando';
+    document.body.className = ""; $("siteTxt").textContent = "analisando…";
+    try {
+      const [res] = await Promise.all([previa ? consultarPrevia(previa) : consultar(id), scanner()]);
+      const { data, demo } = res;
+      // ID não reconhecido ou rede indisponível: mostra só o aviso, sem nota nem dados de exemplo
+      if (data.desconhecida) { idle("⚠ " + esc(data.mensagem || "ID não reconhecido.")); resetPipe(); marcar(""); return; }
+      const status = String(data.status ?? data.Status ?? "").toLowerCase();
+      if (!TEXTOS[status]) throw new Error("Status desconhecido recebido da API: " + JSON.stringify(data));
+      const T = TEXTOS[status], F = FIX[status];
+      let ilus = false;
+      const pick = (v, fb) => { if (v === undefined || v === null || v === "") { ilus = true; return fb; } return v; };
+      const site = pick(data.site, F.site), score = Number(pick(data.score ?? data.Score, F.score)) || 0;
+      const tipo = pick(data.permissao ?? data.tipo, F.tipo), taxa = pick(data.taxa, F.taxa);
+      const acao = pick(data.acao ?? data.descricao, F.acao);
+      const antes = Number(pick(data.saldo_antes, F.antes)), depois = Number(pick(data.saldo_depois, F.depois));
+      let motivos = data.motivos;
+      if (!Array.isArray(motivos) || !motivos.length) {
+        const r = data.reason ?? data.motivo ?? data.message;
+        if (r) motivos = [{ nivel: status === "red" ? "alto" : status === "yellow" ? "medio" : "ok", texto: r }]; else { motivos = F.motivos; ilus = true; }
+      }
+      motivos = motivos.map(m => typeof m === "string" ? { nivel: status === "red" ? "alto" : status === "yellow" ? "medio" : "ok", texto: m } : m);
+
+      document.body.className = "s-" + status;
+      $("siteTxt").textContent = site;
+      const pct = antes > 0 ? Math.max(0, Math.min(100, depois / antes * 100)) : 100;
+      $("stage").innerHTML = `
+        <div class="res">
+          <div class="banner">
+            <div class="gauge"><svg viewBox="0 0 200 110"><path class="track" d="M20 100 A80 80 0 0 1 180 100"/><path class="fill" id="gf" d="M20 100 A80 80 0 0 1 180 100"/></svg>
+              <div class="num"><b id="gn">0</b><small>Risk Score</small></div></div>
+            <div><span class="lv">${T.nivel}</span><h2>${T.titulo}</h2><p>${T.msg}</p></div>
+          </div>
+          <div class="card"><h3>O que esta transação quer fazer</h3>
+            <div class="acao"><div class="ic">${T.icAcao}</div><div><p>${esc(acao)}</p><code>${esc(tipo)}</code></div></div></div>
+          <div class="card"><h3>Por que ${status === "green" ? "é segura" : "o SolShield alertou"}</h3>
+            <ul class="reasons">${motivos.map((m, i) => `<li class="${esc(m.nivel)}" style="animation-delay:${.15 + i * .18}s"><em>${NIVEL[m.nivel] || "INFO"}</em><span>${esc(m.texto)}</span></li>`).join("")}</ul></div>
+          <div class="card"><h3>Seu saldo depois de assinar</h3>
+            <div class="bal"><div><small>Antes</small><b>${antes.toFixed(2)} SOL</b></div><span class="arrow">→</span><div class="depois"><small>Depois</small><b>${depois.toFixed(2)} SOL</b></div></div>
+            <div class="bbar"><i id="bb"></i></div>
+            <div class="fee"><span>⛽ Taxa de rede</span><b>${esc(taxa)}</b></div>
+            <div class="ilus">${ilus ? "Alguns detalhes são ilustrativos. " : ""}${demo ? "Resultado de demonstração (API offline)." : ""}${data.previa ? "Análise feita antes da assinatura, com dados reais da Devnet." : ""}</div></div>
+          <div class="actions"><button class="rej" id="rej">Rejeitar</button><button class="sign" id="sign" ${status === "red" ? "disabled" : ""}>${status === "red" ? "🔒 Bloqueado" : "Assinar"}</button></div>
+        </div>`;
+      $("bb").style.width = "100%"; requestAnimationFrame(() => requestAnimationFrame(() => { $("bb").style.width = pct + "%"; $("gf").style.strokeDashoffset = 251.3 * (1 - Math.max(0, Math.min(100, score)) / 100); }));
+      contar($("gn"), score);
+      $("rej").onclick = () => { $("emergencia").classList.remove("ativo"); idle("Transação rejeitada.<br>Sua carteira está segura."); marcar(""); resetPipe(); };
+      $("sign").onclick = previa ? () => assinarReal(previa) : () => { $("msg").textContent = "✔ Assinatura simulada com sucesso (protótipo)."; };
+      pipe(0, status === "red" ? "red" : "fim");
+      atualizarDash({ status, id, site, score, tipo, motivos, protegido: status === "red" ? Math.max(0, antes - depois) : 0 });
+
+      if (status === "red") {
+        await sleep(900);
+        $("eAcao").textContent = acao;
+        $("eMot").innerHTML = motivos.map((m, i) => `<li class="${esc(m.nivel)}" style="animation-delay:${.2 + i * .12}s"><em>${NIVEL[m.nivel] || "INFO"}</em><span>${esc(m.texto)}</span></li>`).join("");
+        $("eScore").textContent = score; $("eAntes").textContent = antes.toFixed(2) + " SOL"; $("eDepois").textContent = depois.toFixed(2) + " SOL";
+        $("emergencia").classList.add("ativo");
+      }
+    } catch (e) {
+      idle(); resetPipe(); $("msg").textContent = "⚠ " + e.message;
+    } finally {
+      btn.disabled = false; btn.textContent = "🛡️ Simular Assinatura";
+    }
+  }
+
+  // ---- Transferência protegida: análise ANTES da assinatura, com dados reais da Devnet ----
+  async function consultarPrevia(p) {
+    let r;
+    try { r = await fetch(`${API_PREVER}?de=${encodeURIComponent(p.de)}&para=${encodeURIComponent(p.para)}&valor=${encodeURIComponent(p.valor)}`); }
+    catch (e) { setApi(false); throw new Error("A análise antes da assinatura precisa da API online."); }
+    if (!r.ok) throw new Error("A API respondeu com erro (HTTP " + r.status + ").");
+    const data = await r.json(); setApi(true);
+    if (data.erro) throw new Error(data.erro);
+    return { data, demo: false };
+  }
+
+  async function conectar() {
+    const p = window.solana;
+    if (!p || !p.isPhantom) throw new Error("Phantom não encontrada. Abra o site pelo link (não pelo arquivo) com a extensão instalada.");
+    const r = await p.connect(); carteira = r.publicKey.toString();
+    $("wAddr").textContent = carteira.slice(0, 4) + "…" + carteira.slice(-4); $("wNome").textContent = "Phantom conectada";
+    return carteira;
+  }
+
+  async function analisarAntes() {
+    const para = $("pDest").value.trim(), valor = parseFloat($("pVal").value.replace(",", "."));
+    if (!para) { $("pDest").focus(); return; }
+    if (!(valor > 0)) { $("pVal").focus(); return; }
+    try { if (!carteira) await conectar(); }
+    catch (e) { $("msg").textContent = "⚠ " + (e.message || "Conexão com a carteira cancelada."); return; }
+    await simular(null, { de: carteira, para, valor });
+  }
+
+  function carregarWeb3() {
+    if (window.solanaWeb3) return Promise.resolve();
+    const tentar = url => new Promise((ok, falha) => { const s = document.createElement("script"); s.src = url; s.onload = ok; s.onerror = falha; document.head.appendChild(s); });
+    return tentar("https://unpkg.com/@solana/web3.js@1.95.3/lib/index.iife.min.js")
+      .catch(() => tentar("https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.3/lib/index.iife.min.js"));
+  }
+
+  // Só é chamada depois da análise, e o botão fica travado quando o risco é crítico.
+  async function assinarReal(p) {
+    const b = $("sign"); b.disabled = true; $("msg").textContent = "Abrindo a Phantom para você assinar…";
+    try {
+      await carregarWeb3();
+      const W = window.solanaWeb3;
+      const con = new W.Connection(RPC_DEVNET, "confirmed");
+      const de = new W.PublicKey(p.de), para = new W.PublicKey(p.para);
+      const tx = new W.Transaction().add(W.SystemProgram.transfer({ fromPubkey: de, toPubkey: para, lamports: Math.round(p.valor * 1e9) }));
+      tx.feePayer = de; tx.recentBlockhash = (await con.getLatestBlockhash()).blockhash;
+      const r = await window.solana.signAndSendTransaction(tx);
+      const sig = r.signature || r;
+      $("txid").value = sig;
+      $("msg").innerHTML = `✔ Enviada na Devnet. <a href="https://explorer.solana.com/tx/${encodeURIComponent(sig)}?cluster=devnet" target="_blank" rel="noopener">Ver no explorador</a>`;
+    } catch (e) {
+      $("msg").textContent = "⚠ Não foi assinada: " + (e.message || "cancelada na carteira.");
+      b.disabled = false;
+    }
+  }
+
+  async function apresentacao() {
+    if (rodando) return; rodando = true; $("demo").disabled = true;
+    const espera = async () => { while ($("emergencia").classList.contains("ativo")) await sleep(300); };
+    nar(1, "<b>Transação normal.</b> Uma troca comum em um site conhecido. O SolShield analisa e libera."); await simular("tx_001"); await sleep(4200);
+    nar(2, "<b>Zona cinzenta.</b> Pede permissão ilimitada. Não é golpe provado, mas o usuário precisa saber."); await simular("tx_002"); await sleep(4200);
+    nar(3, "<b>Ataque.</b> Um site falso tenta tomar o controle da carteira. Veja o firewall agir."); await simular("tx_003");
+    await espera();
+    nar("✓", "<b>Interceptada e bloqueada antes da assinatura.</b> O dashboard mostra os fundos protegidos.");
+    rodando = false; $("demo").disabled = false;
+  }
+
+  $("btn").addEventListener("click", () => simular());
+  $("txid").addEventListener("keydown", e => { if (e.key === "Enter") simular(); });
+  document.querySelectorAll(".qk").forEach(q => q.addEventListener("click", () => simular(q.dataset.tx)));
+  $("demo").addEventListener("click", apresentacao);
+  // Conecta a Phantom. A assinatura real só acontece na "Transferência protegida", depois da análise.
+  $("wl").addEventListener("click", async () => {
+    try { await conectar(); $("msg").textContent = ""; }
+    catch (e) { $("msg").textContent = "⚠ " + (e.message || "Conexão com a carteira cancelada."); }
+  });
+  $("pBtn").addEventListener("click", analisarAntes);
+  $("pVal").addEventListener("keydown", e => { if (e.key === "Enter") analisarAntes(); });
+  $("fechar").addEventListener("click", () => { $("emergencia").classList.remove("ativo"); const r = $("rej"); if (r) r.click(); });
+  $("ver").addEventListener("click", () => $("emergencia").classList.remove("ativo"));
+
+  idle(); renderDash();
+  fetch(API + "ping").then(() => setApi(true)).catch(() => setApi(false));
+</script>
+</body>
+</html>
