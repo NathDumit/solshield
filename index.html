@@ -79,6 +79,12 @@
   .qk.yellow.on { color: var(--yellow); border-color: var(--yellow); background: rgba(255,200,61,.1); }
   .qk.red.on    { color: var(--red);    border-color: var(--red);    background: rgba(255,45,85,.1); }
 
+  .prev { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); }
+  .prev .pv { flex: 0 0 92px; }
+  .prev .go { width: 100%; margin-top: 8px; padding: 12px; }
+  .prev small { display: block; margin-top: 7px; color: var(--mut); font-size: .72rem; line-height: 1.4; }
+  #msg a { color: var(--green); }
+
   /* Estado ocioso / scanner */
   .idle { text-align: center; padding: 26px 10px; color: var(--mut); }
   .idle .big { font-size: 2.6rem; opacity: .9; }
@@ -299,6 +305,15 @@
               <button class="qk yellow" data-tx="tx_002">⚠ Alerta</button>
               <button class="qk red" data-tx="tx_003">☠ Crítico</button>
             </div>
+            <div class="prev">
+              <label class="l" for="pDest">Transferência protegida · Devnet</label>
+              <div class="row">
+                <input id="pDest" placeholder="carteira de destino" autocomplete="off" spellcheck="false">
+                <input id="pVal" class="pv" placeholder="SOL" inputmode="decimal" autocomplete="off">
+              </div>
+              <button class="go" id="pBtn">🛡️ Analisar antes de assinar</button>
+              <small>Usa a sua Phantom (Devnet). O SolShield consulta a rede e só libera a assinatura se o risco não for crítico.</small>
+            </div>
           </div>
 
           <div id="stage"></div>
@@ -431,6 +446,9 @@
 
   const stats = { green: 0, yellow: 0, red: 0, protegido: 0 };
   let rodando = false;
+  let carteira = null;   // endereço da Phantom conectada (null = carteira demo)
+  const RPC_DEVNET = "https://api.devnet.solana.com";
+  const API_PREVER = API.replace(/score\/?$/, "prever");
 
   function setApi(on) { $("pill").className = "pill " + (on ? "on" : "off"); $("pillTxt").textContent = on ? "API conectada · " + (LOCAL ? "localhost:5000" : location.host) : "API offline · modo demonstração"; }
 
@@ -543,14 +561,17 @@
       top.map(([t, e]) => `<div style="--c:${e.nivel === "alto" ? "var(--red)" : "var(--yellow)"}"><div class="ft"><span>${esc(t)}</span><b>${e.n}×</b></div><div class="fb"><i style="width:${Math.round(e.n / hist.length * 100)}%"></i></div></div>`).join("");
   }
 
-  async function simular(id) {
-    id = (id ?? $("txid").value).trim();
-    if (!id) { $("txid").focus(); return; }
-    $("txid").value = id; marcar(id.toLowerCase()); $("msg").textContent = ""; $("emergencia").classList.remove("ativo");
+  async function simular(id, previa) {
+    if (previa) { id = "prévia"; marcar(""); }
+    else {
+      id = (id ?? $("txid").value).trim();
+      if (!id) { $("txid").focus(); return; }
+      $("txid").value = id; marcar(id.toLowerCase());
+    } $("msg").textContent = ""; $("emergencia").classList.remove("ativo");
     const btn = $("btn"); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Analisando';
     document.body.className = ""; $("siteTxt").textContent = "analisando…";
     try {
-      const [res] = await Promise.all([consultar(id), scanner()]);
+      const [res] = await Promise.all([previa ? consultarPrevia(previa) : consultar(id), scanner()]);
       const { data, demo } = res;
       // ID não reconhecido ou rede indisponível: mostra só o aviso, sem nota nem dados de exemplo
       if (data.desconhecida) { idle("⚠ " + esc(data.mensagem || "ID não reconhecido.")); resetPipe(); marcar(""); return; }
@@ -588,13 +609,13 @@
             <div class="bal"><div><small>Antes</small><b>${antes.toFixed(2)} SOL</b></div><span class="arrow">→</span><div class="depois"><small>Depois</small><b>${depois.toFixed(2)} SOL</b></div></div>
             <div class="bbar"><i id="bb"></i></div>
             <div class="fee"><span>⛽ Taxa de rede</span><b>${esc(taxa)}</b></div>
-            <div class="ilus">${ilus ? "Alguns detalhes são ilustrativos. " : ""}${demo ? "Resultado de demonstração (API offline)." : ""}</div></div>
+            <div class="ilus">${ilus ? "Alguns detalhes são ilustrativos. " : ""}${demo ? "Resultado de demonstração (API offline)." : ""}${data.previa ? "Análise feita antes da assinatura, com dados reais da Devnet." : ""}</div></div>
           <div class="actions"><button class="rej" id="rej">Rejeitar</button><button class="sign" id="sign" ${status === "red" ? "disabled" : ""}>${status === "red" ? "🔒 Bloqueado" : "Assinar"}</button></div>
         </div>`;
       $("bb").style.width = "100%"; requestAnimationFrame(() => requestAnimationFrame(() => { $("bb").style.width = pct + "%"; $("gf").style.strokeDashoffset = 251.3 * (1 - Math.max(0, Math.min(100, score)) / 100); }));
       contar($("gn"), score);
       $("rej").onclick = () => { $("emergencia").classList.remove("ativo"); idle("Transação rejeitada.<br>Sua carteira está segura."); marcar(""); resetPipe(); };
-      $("sign").onclick = () => { $("msg").textContent = "✔ Assinatura simulada com sucesso (protótipo)."; };
+      $("sign").onclick = previa ? () => assinarReal(previa) : () => { $("msg").textContent = "✔ Assinatura simulada com sucesso (protótipo)."; };
       pipe(0, status === "red" ? "red" : "fim");
       atualizarDash({ status, id, site, score, tipo, motivos, protegido: status === "red" ? Math.max(0, antes - depois) : 0 });
 
@@ -609,6 +630,61 @@
       idle(); resetPipe(); $("msg").textContent = "⚠ " + e.message;
     } finally {
       btn.disabled = false; btn.textContent = "🛡️ Simular Assinatura";
+    }
+  }
+
+  // ---- Transferência protegida: análise ANTES da assinatura, com dados reais da Devnet ----
+  async function consultarPrevia(p) {
+    let r;
+    try { r = await fetch(`${API_PREVER}?de=${encodeURIComponent(p.de)}&para=${encodeURIComponent(p.para)}&valor=${encodeURIComponent(p.valor)}`); }
+    catch (e) { setApi(false); throw new Error("A análise antes da assinatura precisa da API online."); }
+    if (!r.ok) throw new Error("A API respondeu com erro (HTTP " + r.status + ").");
+    const data = await r.json(); setApi(true);
+    if (data.erro) throw new Error(data.erro);
+    return { data, demo: false };
+  }
+
+  async function conectar() {
+    const p = window.solana;
+    if (!p || !p.isPhantom) throw new Error("Phantom não encontrada. Abra o site pelo link (não pelo arquivo) com a extensão instalada.");
+    const r = await p.connect(); carteira = r.publicKey.toString();
+    $("wAddr").textContent = carteira.slice(0, 4) + "…" + carteira.slice(-4); $("wNome").textContent = "Phantom conectada";
+    return carteira;
+  }
+
+  async function analisarAntes() {
+    const para = $("pDest").value.trim(), valor = parseFloat($("pVal").value.replace(",", "."));
+    if (!para) { $("pDest").focus(); return; }
+    if (!(valor > 0)) { $("pVal").focus(); return; }
+    try { if (!carteira) await conectar(); }
+    catch (e) { $("msg").textContent = "⚠ " + (e.message || "Conexão com a carteira cancelada."); return; }
+    await simular(null, { de: carteira, para, valor });
+  }
+
+  function carregarWeb3() {
+    if (window.solanaWeb3) return Promise.resolve();
+    const tentar = url => new Promise((ok, falha) => { const s = document.createElement("script"); s.src = url; s.onload = ok; s.onerror = falha; document.head.appendChild(s); });
+    return tentar("https://unpkg.com/@solana/web3.js@1.95.3/lib/index.iife.min.js")
+      .catch(() => tentar("https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.3/lib/index.iife.min.js"));
+  }
+
+  // Só é chamada depois da análise, e o botão fica travado quando o risco é crítico.
+  async function assinarReal(p) {
+    const b = $("sign"); b.disabled = true; $("msg").textContent = "Abrindo a Phantom para você assinar…";
+    try {
+      await carregarWeb3();
+      const W = window.solanaWeb3;
+      const con = new W.Connection(RPC_DEVNET, "confirmed");
+      const de = new W.PublicKey(p.de), para = new W.PublicKey(p.para);
+      const tx = new W.Transaction().add(W.SystemProgram.transfer({ fromPubkey: de, toPubkey: para, lamports: Math.round(p.valor * 1e9) }));
+      tx.feePayer = de; tx.recentBlockhash = (await con.getLatestBlockhash()).blockhash;
+      const r = await window.solana.signAndSendTransaction(tx);
+      const sig = r.signature || r;
+      $("txid").value = sig;
+      $("msg").innerHTML = `✔ Enviada na Devnet. <a href="https://explorer.solana.com/tx/${encodeURIComponent(sig)}?cluster=devnet" target="_blank" rel="noopener">Ver no explorador</a>`;
+    } catch (e) {
+      $("msg").textContent = "⚠ Não foi assinada: " + (e.message || "cancelada na carteira.");
+      b.disabled = false;
     }
   }
 
@@ -627,13 +703,13 @@
   $("txid").addEventListener("keydown", e => { if (e.key === "Enter") simular(); });
   document.querySelectorAll(".qk").forEach(q => q.addEventListener("click", () => simular(q.dataset.tx)));
   $("demo").addEventListener("click", apresentacao);
-  // Opcional: conecta uma carteira Phantom real (só mostra o endereço; não assina nada)
+  // Conecta a Phantom. A assinatura real só acontece na "Transferência protegida", depois da análise.
   $("wl").addEventListener("click", async () => {
-    const p = window.solana;
-    if (!p || !p.isPhantom) { $("msg").textContent = "Phantom não encontrada. Instale a extensão para conectar uma carteira real."; return; }
-    try { const r = await p.connect(); const a = r.publicKey.toString(); $("wAddr").textContent = a.slice(0, 4) + "…" + a.slice(-4); $("wNome").textContent = "Phantom conectada"; }
-    catch (e) { $("msg").textContent = "Conexão com a carteira cancelada."; }
+    try { await conectar(); $("msg").textContent = ""; }
+    catch (e) { $("msg").textContent = "⚠ " + (e.message || "Conexão com a carteira cancelada."); }
   });
+  $("pBtn").addEventListener("click", analisarAntes);
+  $("pVal").addEventListener("keydown", e => { if (e.key === "Enter") analisarAntes(); });
   $("fechar").addEventListener("click", () => { $("emergencia").classList.remove("ativo"); const r = $("rej"); if (r) r.click(); });
   $("ver").addEventListener("click", () => $("emergencia").classList.remove("ativo"));
 
