@@ -10,7 +10,7 @@ import sys
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RAIZ)
 
-from flask import Flask, jsonify, send_file
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 
 from risk_engine import calcular_risco
@@ -31,6 +31,26 @@ def pagina():
 @app.route("/api/score/<id_transacao>")
 def score(id_transacao):
     return jsonify(calcular_risco(id_transacao))
+
+
+@app.route("/api/prever")
+def prever():
+    """Analisa uma transferência ANTES da assinatura: /api/prever?de=...&para=...&valor=0.2"""
+    from solana_rpc import parece_endereco, prever as prever_transferencia
+    de = (request.args.get("de") or "").strip()
+    para = (request.args.get("para") or "").strip()
+    try:
+        valor = float((request.args.get("valor") or "").replace(",", "."))
+    except ValueError:
+        valor = 0
+    if not parece_endereco(de) or not parece_endereco(para):
+        return jsonify({"erro": "Endereço de carteira inválido. Confira origem e destino."})
+    if not 0 < valor < 1e9:
+        return jsonify({"erro": "Digite um valor em SOL maior que zero."})
+    try:
+        return jsonify(prever_transferencia(de, para, valor))
+    except Exception as erro:  # rede fora do ar, limite do RPC etc.
+        return jsonify({"erro": "Não foi possível consultar a rede Solana agora (" + str(erro)[:80] + ")."})
 
 
 @app.route("/api/health")
