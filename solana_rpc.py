@@ -166,12 +166,77 @@ def parece_endereco(texto):
     return 32 <= len(texto) <= 44 and all(c in BASE58 for c in texto)
 
 
+LIMITE_HISTORICO = 200  # quantas transações recentes olhamos de cada carteira
+
+
+def _denunciadas():
+    try:
+        from denuncias import todas
+        return todas()
+    except Exception:
+        return {}
+
+
+def _reputacao(origem, destino, historico):
+    """Quatro checagens sobre quem vai receber. Devolve (pontos, motivos)."""
+    import time
+    pontos, motivos = 0, []
+    lista = _denunciadas()
+
+    # 1) Lista de endereços denunciados
+    if destino in lista:
+        pontos += 80
+        motivos.append({"nivel": "alto", "texto": "O destino está na nossa lista de endereços denunciados: " + str(lista[destino]) + "."})
+
+    # Só dá para saber a idade e a origem se enxergamos o histórico inteiro
+    completo = 0 < len(historico) < LIMITE_HISTORICO
+    mais_antiga = historico[-1] if completo else None
+
+    # 2) Idade da carteira (data da primeira transação)
+    if mais_antiga and mais_antiga.get("blockTime"):
+        horas = (time.time() - mais_antiga["blockTime"]) / 3600
+        if horas < 24:
+            pontos += 15
+            motivos.append({"nivel": "medio", "texto": "A carteira de destino foi criada há menos de 24 horas."})
+        elif horas < 24 * 7:
+            pontos += 5
+            motivos.append({"nivel": "baixo", "texto": f"A carteira de destino é recente: {int(horas // 24)} dia(s) de uso."})
+        else:
+            motivos.append({"nivel": "ok", "texto": f"A carteira de destino existe há {int(horas // 24)} dias."})
+
+    # 3) Origem dos fundos: quem pagou a primeira transação dessa carteira
+    if mais_antiga and mais_antiga.get("signature"):
+        tx = _rpc("getTransaction", [mais_antiga["signature"], {
+            "encoding": "jsonParsed", "maxSupportedTransactionVersion": 0, "commitment": "confirmed"}]).get("result")
+        if tx:
+            financiador = tx["transaction"]["message"]["accountKeys"][0]["pubkey"]
+            if financiador in lista:
+                pontos += 40
+                motivos.append({"nivel": "alto", "texto": "Quem financiou essa carteira está na lista de endereços denunciados."})
+            elif financiador == origem:
+                motivos.append({"nivel": "ok", "texto": "Os primeiros fundos dessa carteira vieram de você."})
+            elif financiador != destino:
+                motivos.append({"nivel": "baixo", "texto": "Os primeiros fundos dessa carteira vieram de " + _curto(financiador) + "."})
+
+    # 4) Relação entre as duas carteiras: já transacionaram antes?
+    if historico and destino != origem:
+        minhas = _rpc("getSignaturesForAddress", [origem, {"limit": LIMITE_HISTORICO}]).get("result") or []
+        em_comum = {x.get("signature") for x in minhas} & {x.get("signature") for x in historico}
+        if em_comum:
+            pontos -= 15
+            motivos.append({"nivel": "ok", "texto": f"Você já transacionou com esta carteira {len(em_comum)} vez(es)."})
+        else:
+            motivos.append({"nivel": "baixo", "texto": "É a primeira vez que você transaciona com esta carteira."})
+
+    return pontos, motivos
+
+
 def prever(origem, destino, valor_sol):
     """Risco de enviar valor_sol de origem para destino, ANTES de assinar."""
     lamports = int(round(valor_sol * 1e9))
     saldo = int((_rpc("getBalance", [origem]).get("result") or {}).get("value") or 0)
     conta = (_rpc("getAccountInfo", [destino, {"encoding": "base64"}]).get("result") or {}).get("value")
-    historico = _rpc("getSignaturesForAddress", [destino, {"limit": 25}]).get("result") or []
+    historico = _rpc("getSignaturesForAddress", [destino, {"limit": LIMITE_HISTORICO}]).get("result") or []
 
     motivos = []
     score = 0
@@ -206,7 +271,16 @@ def prever(origem, destino, valor_sol):
     else:
         motivos.append({"nivel": "ok", "texto": "A carteira de destino já tem histórico de uso na rede."})
 
-    score = min(100, score)
+    # Reputação da carteira de destino. Se alguma consulta extra falhar,
+    # a análise básica acima continua valendo.
+    try:
+        pontos, extras = _reputacao(origem, destino, historico)
+        score += pontos
+        motivos += extras
+    except Exception:
+        pass
+
+    score = max(0, min(100, score))
     status = "Red" if score >= 70 else "Yellow" if score >= 35 else "Green"
     return {
         "status": status,
