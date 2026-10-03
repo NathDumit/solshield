@@ -208,8 +208,17 @@ O projeto é feito para a **Solana** e já tem integração real com a rede, em 
 
 > ⚠️ Este módulo **não foi executado** pelo autor. Se der erro, veja a seção 8. Se o tempo estiver curto, **cortem esta parte** e mantenham só os cenários de demonstração, mas digam na banca que a análise de transações reais é o próximo passo.
 
-### Conectar uma carteira Phantom (opcional)
-Clique em "Carteira demo" no topo do pop-up. Se a extensão Phantom estiver instalada, ela pede permissão e o endereço real aparece. **O SolShield só lê o endereço e não assina nada.** Se o evento exigir interceptar a assinatura real de uma carteira, o caminho é usar `window.solana.signTransaction`, mostrar a análise antes e só então chamar a assinatura. Isso **não está implementado**.
+### Transferência protegida: análise ANTES da assinatura
+No pop-up, o bloco **"Transferência protegida · Devnet"** faz o fluxo real:
+1. Você digita a carteira de destino e o valor em SOL e clica em **Analisar antes de assinar**.
+2. O site conecta a Phantom (só para saber o endereço) e chama `/api/prever`.
+3. A API consulta a Devnet (`prever()` em `solana_rpc.py`): saldo de quem envia e histórico de quem recebe.
+4. Regras: mais de 90% do saldo → +70; mais da metade → +30; destino nunca usado → +25; destino com pouco histórico → +10; destino é um programa → +40.
+5. Se o risco for crítico (70 ou mais), o botão **Assinar** fica travado. Senão, clicar em **Assinar** abre a Phantom e envia a transação de verdade na Devnet.
+
+Precisa abrir o site pelo link (Vercel) ou por `http://localhost:5000/`: a Phantom não funciona em página aberta por dois cliques no arquivo.
+
+> ⚠️ A análise foi testada com respostas simuladas da rede, e a assinatura com uma Phantom simulada. **Testem com a Phantom real antes do pitch.**
 
 ---
 
@@ -309,5 +318,5 @@ Depois vêm até 2 minutos de perguntas da banca. Os slides precisam ser enviado
 
 ### Honestidade na banca
 - Os cenários `tx_001–003` são fictícios para demonstração; as regras de `solana_rpc.py` são heurísticas simples.
-- A análise de transação real usa `getTransaction`, que lê transações **já confirmadas** na rede. Interceptar antes da assinatura é o próximo passo, não o que o protótipo faz hoje.
+- Colar uma Signature analisa uma transação **já confirmada** (`getTransaction`). A análise **antes da assinatura** existe só para transferências de SOL feitas pelo próprio site ("Transferência protegida"). Interceptar qualquer transação de qualquer site exigiria integração com a carteira: é próximo passo.
 - Os "fundos protegidos" do dashboard somam apenas as análises feitas **na sessão**.

@@ -114,7 +114,7 @@ def analisar(assinatura):
         proporcao = total_enviado / saldo_antes
         sol = total_enviado / 1e9
         if proporcao >= 0.9:
-            score += 60
+            score += 70  # esvaziar a carteira sozinho já é risco crítico
             motivos.append({"nivel": "alto", "texto": f"Envia {sol:.4f} SOL, mais de 90% do saldo da carteira."})
         elif proporcao >= 0.5:
             score += 30
@@ -148,5 +148,75 @@ def analisar(assinatura):
         "taxa": f"{(meta.get('fee') or 0) / 1e9:.6f} SOL",
         "saldo_antes": round(saldo_antes / 1e9, 4),
         "saldo_depois": round(saldo_depois / 1e9, 4),
+        "motivos": motivos,
+    }
+
+
+# ---------------------------------------------------------------------------
+# ANÁLISE ANTES DA ASSINATURA
+# A carteira ainda não assinou nada. Consultamos a rede para saber o saldo de
+# quem envia e o histórico de quem recebe, e calculamos o risco da transferência.
+# ---------------------------------------------------------------------------
+SYSTEM_PROGRAM = "11111111111111111111111111111111"
+TAXA_LAMPORTS = 5000  # taxa base de uma transferência simples
+
+
+def parece_endereco(texto):
+    """Endereços da Solana têm de 32 a 44 caracteres base58."""
+    return 32 <= len(texto) <= 44 and all(c in BASE58 for c in texto)
+
+
+def prever(origem, destino, valor_sol):
+    """Risco de enviar valor_sol de origem para destino, ANTES de assinar."""
+    lamports = int(round(valor_sol * 1e9))
+    saldo = int((_rpc("getBalance", [origem]).get("result") or {}).get("value") or 0)
+    conta = (_rpc("getAccountInfo", [destino, {"encoding": "base64"}]).get("result") or {}).get("value")
+    historico = _rpc("getSignaturesForAddress", [destino, {"limit": 25}]).get("result") or []
+
+    motivos = []
+    score = 0
+
+    if lamports + TAXA_LAMPORTS > saldo:
+        return {"erro": f"Saldo insuficiente: a carteira tem {saldo / 1e9:.4f} SOL."}
+
+    proporcao = lamports / saldo if saldo else 1
+    if proporcao >= 0.9:
+        score += 70
+        motivos.append({"nivel": "alto", "texto": f"Envia {valor_sol:.4f} SOL, mais de 90% do saldo: a carteira fica praticamente vazia."})
+    elif proporcao >= 0.5:
+        score += 30
+        motivos.append({"nivel": "medio", "texto": f"Envia {valor_sol:.4f} SOL, mais da metade do saldo da carteira."})
+    else:
+        motivos.append({"nivel": "ok", "texto": f"Envia {valor_sol:.4f} SOL, uma parte pequena do saldo."})
+
+    if destino == origem:
+        motivos.append({"nivel": "baixo", "texto": "O destino é a sua própria carteira."})
+    elif conta and conta.get("executable"):
+        score += 40
+        motivos.append({"nivel": "alto", "texto": "O destino é um programa, não uma carteira de pessoa."})
+    elif conta and conta.get("owner") != SYSTEM_PROGRAM:
+        score += 25
+        motivos.append({"nivel": "medio", "texto": "O destino não é uma carteira comum: é uma conta controlada por um programa."})
+    elif not historico:
+        score += 25
+        motivos.append({"nivel": "medio", "texto": "A carteira de destino nunca foi usada. Carteiras descartáveis são comuns em golpes."})
+    elif len(historico) < 5:
+        score += 10
+        motivos.append({"nivel": "baixo", "texto": f"A carteira de destino tem pouco histórico ({len(historico)} transação(ões))."})
+    else:
+        motivos.append({"nivel": "ok", "texto": "A carteira de destino já tem histórico de uso na rede."})
+
+    score = min(100, score)
+    status = "Red" if score >= 70 else "Yellow" if score >= 35 else "Green"
+    return {
+        "status": status,
+        "score": score,
+        "previa": True,
+        "site": "destino " + _curto(destino),
+        "acao": f"Enviar {valor_sol:.4f} SOL da sua carteira para {_curto(destino)}.",
+        "permissao": "system:transfer",
+        "taxa": f"{TAXA_LAMPORTS / 1e9:.6f} SOL (estimada)",
+        "saldo_antes": round(saldo / 1e9, 4),
+        "saldo_depois": round((saldo - lamports - TAXA_LAMPORTS) / 1e9, 4),
         "motivos": motivos,
     }
