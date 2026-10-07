@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guia do SolShield · Teste do zero</title>
+<meta name="description" content="Passo a passo para quem nunca usou cripto: crie uma carteira, receba moedas de teste e faça uma transferência protegida pelo SolShield, sem dinheiro de verdade.">
+<style>
+  :root {
+    --bg: #05060b; --panel: #0c0f18; --panel2: #121724; --line: rgba(255,255,255,.08);
+    --txt: #eef0f7; --mut: #9aa0b8;
+    --purple: #9945ff; --green: #14f195; --yellow: #ffc83d; --red: #ff2d55;
+    --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--txt); font-family: var(--font); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  a { color: var(--green); }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 16px 64px; }
+
+  header { padding: 28px 0 8px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--txt); text-decoration: none; font-weight: 700; letter-spacing: .2px; }
+  .brand svg { width: 28px; height: 28px; }
+  .eyebrow { margin: 28px 0 8px; font-size: .72rem; letter-spacing: 1.6px; text-transform: uppercase; color: var(--green); font-weight: 700; }
+  h1 { margin: 0 0 12px; font-size: clamp(1.7rem, 5vw, 2.4rem); line-height: 1.15; letter-spacing: -.5px; text-wrap: balance; }
+  .lead { margin: 0; font-size: 1.05rem; color: var(--mut); max-width: 60ch; }
+
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 0; padding: 0; list-style: none; }
+  .meta li { font-size: .82rem; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--mut); }
+  .meta b { color: var(--txt); font-weight: 600; }
+
+  nav { margin: 28px 0 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  nav a { display: block; padding: 10px 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--txt); text-decoration: none; font-size: .8rem; text-align: center; }
+  nav a b { display: block; font-family: var(--mono); color: var(--purple); font-size: .95rem; }
+  nav a:hover, nav a:focus-visible { border-color: var(--purple); }
+
+  section { margin-top: 44px; }
+  h2 { margin: 0 0 6px; font-size: 1.3rem; line-height: 1.25; letter-spacing: -.2px; }
+  h2 .n { display: inline-grid; place-items: center; width: 30px; height: 30px; margin-right: 10px; border-radius: 9px; background: color-mix(in srgb, var(--purple) 22%, transparent); color: #c9a6ff; font-family: var(--mono); font-size: .95rem; vertical-align: 2px; }
+  section > p { margin: 0 0 14px; color: var(--mut); }
+
+  .regras { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+  .regras li { padding: 14px 16px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--yellow); }
+  .regras b { display: block; margin-bottom: 2px; }
+  .regras span { color: var(--mut); font-size: .93rem; }
+
+  ol.passos { margin: 0; padding: 0; list-style: none; counter-reset: p; display: grid; gap: 8px; }
+  ol.passos > li { counter-increment: p; position: relative; padding: 13px 16px 13px 50px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); }
+  ol.passos > li::before { content: counter(p); position: absolute; left: 16px; top: 13px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-family: var(--mono); font-size: .75rem; font-weight: 700; color: var(--bg); background: var(--green); }
+  ol.passos b { font-weight: 650; }
+  code, kbd { font-family: var(--mono); font-size: .88em; padding: 2px 6px; border-radius: 6px; background: var(--panel2); border: 1px solid var(--line); }
+
+  .nota { margin: 14px 0 0; padding: 12px 16px; border-radius: 14px; background: var(--panel2); border: 1px solid var(--line); color: var(--mut); font-size: .93rem; }
+  .nota b { color: var(--txt); }
+
+  .endereco { margin: 10px 0 2px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .endereco code { flex: 1 1 260px; min-width: 0; padding: 10px 12px; font-size: .82rem; overflow-wrap: anywhere; color: var(--green); border-style: dashed; border-color: color-mix(in srgb, var(--green) 45%, transparent); }
+  button.copiar { flex: none; font: inherit; font-size: .85rem; font-weight: 650; padding: 10px 14px; border-radius: 10px; border: 0; cursor: pointer; color: var(--bg); background: var(--green); }
+  button.copiar:focus-visible, a:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+
+  .cta { display: inline-block; margin-top: 16px; padding: 12px 18px; border-radius: 12px; background: var(--purple); color: #fff; text-decoration: none; font-weight: 650; }
+
+  .ajuda { display: grid; gap: 8px; margin: 0; }
+  .ajuda div { padding: 13px 16px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); }
+  .ajuda dt { font-weight: 650; }
+  .ajuda dd { margin: 2px 0 0; color: var(--mut); font-size: .93rem; }
+
+  .glossario { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .glossario li { padding: 10px 0; border-bottom: 1px solid var(--line); color: var(--mut); font-size: .95rem; }
+  .glossario b { color: var(--txt); }
+
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--mut); font-size: .82rem; }
+
+  @media (max-width: 520px) { nav { grid-template-columns: repeat(2, 1fr); } }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="brand" href="/" aria-label="SolShield, voltar para a ferramenta">
+      <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#9945ff"/><stop offset="1" stop-color="#14f195"/></linearGradient></defs>
+        <path d="M24 4 8 10v13c0 10 7 17 16 21 9-4 16-11 16-21V10L24 4Z" stroke="url(#g)" stroke-width="3" stroke-linejoin="round"/>
+        <path d="m17 24 5 5 9-10" stroke="url(#g)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      SolShield
+    </a>
+    <p class="eyebrow">Guia para quem nunca usou cripto</p>
+    <h1>Teste o SolShield do zero, sem dinheiro de verdade</h1>
+    <p class="lead">Você cria uma carteira, recebe moedas de teste gratuitas e faz uma transferência protegida pelo SolShield. Tudo numa rede de teste, onde não existe como perder dinheiro.</p>
+    <ul class="meta">
+      <li><b>20 minutos</b></li>
+      <li>Precisa de <b>computador</b></li>
+      <li>Chrome, Brave ou Edge</li>
+      <li><b>Gratuito</b></li>
+    </ul>
+    <nav aria-label="Passos do guia">
+      <a href="#passo1"><b>1</b>Instalar a carteira</a>
+      <a href="#passo2"><b>2</b>Ligar o modo de teste</a>
+      <a href="#passo3"><b>3</b>Pegar SOL de teste</a>
+      <a href="#passo4"><b>4</b>Transferência protegida</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="antes">
+      <h2>Antes de começar</h2>
+      <p>A Solana tem uma rede chamada devnet, feita para experimentar. As moedas de lá são gratuitas e não valem nada. O teste usa uma extensão do navegador, então pelo celular ainda não foi testado.</p>
+      <ul class="regras">
+        <li><b>A frase de recuperação é só sua.</b><span>São 12 palavras que a carteira mostra na criação. Quem tem a frase tem a carteira. Ninguém do time do SolShield vai pedir, e nenhum site ou suporte legítimo pede.</span></li>
+        <li><b>Instale só pelo endereço oficial.</b><span>Use <a href="https://phantom.com/download" target="_blank" rel="noopener">phantom.com/download</a>. Existem cópias falsas da carteira em anúncios e lojas de extensões.</span></li>
+        <li><b>Use uma carteira nova só para este teste.</b><span>Não coloque dinheiro de verdade nela.</span></li>
+        <li><b>Ninguém vai pedir pagamento.</b><span>O teste é gratuito e isto não é recomendação de investimento.</span></li>
+      </ul>
+    </section>
+
+    <section id="passo1">
+      <h2><span class="n">1</span>Instalar a carteira Phantom</h2>
+      <p>A carteira é o programa que guarda as suas moedas e pede a sua confirmação antes de qualquer envio. Os nomes dos botões podem aparecer em inglês ou português e mudar um pouco entre versões.</p>
+      <ol class="passos">
+        <li>Abra <a href="https://phantom.com/download" target="_blank" rel="noopener">phantom.com/download</a> e escolha o seu navegador (Chrome, Brave ou Edge).</li>
+        <li>Na loja de extensões, clique em adicionar a extensão e confirme.</li>
+        <li>A Phantom abre uma aba de boas-vindas. Escolha criar uma carteira nova (<b>Create a new wallet</b>).</li>
+        <li>Se ela oferecer mais de uma forma de criar, escolha a que usa frase de recuperação (<b>seed phrase</b>).</li>
+        <li>Crie uma senha. Ela protege a carteira neste computador.</li>
+        <li>Anote as 12 palavras da frase de recuperação em papel, na ordem, e guarde. Não tire foto e não salve em e-mail ou bloco de notas.</li>
+        <li>Termine a configuração e fixe a extensão na barra do navegador: clique no ícone de quebra-cabeça e no alfinete ao lado de Phantom.</li>
+      </ol>
+    </section>
+
+    <section id="passo2">
+      <h2><span class="n">2</span>Ligar o modo de teste</h2>
+      <p>Por padrão a carteira mostra a rede principal, onde as moedas valem dinheiro. O modo de teste troca para a devnet.</p>
+      <ol class="passos">
+        <li>Abra a Phantom e entre em <b>Settings</b> (Configurações).</li>
+        <li>Entre em <b>Developer Settings</b> (Configurações de desenvolvedor).</li>
+        <li>Ligue <b>Testnet Mode</b> (Modo de teste).</li>
+        <li>Se aparecer a escolha de rede da Solana, selecione <b>Solana Devnet</b>.</li>
+      </ol>
+      <p class="nota">O saldo vai aparecer zerado. É o esperado: a carteira é nova e ainda não recebeu moedas de teste.</p>
+    </section>
+
+    <section id="passo3">
+      <h2><span class="n">3</span>Pegar SOL de teste</h2>
+      <p>SOL é a moeda da Solana. Na devnet ela é distribuída de graça por um site oficial chamado faucet ("torneira").</p>
+      <ol class="passos">
+        <li>Na Phantom, clique no nome da conta, no topo, para copiar o seu endereço da Solana. É um texto longo de letras e números; pode compartilhar sem medo, ele só serve para receber.</li>
+        <li>Abra <a href="https://faucet.solana.com" target="_blank" rel="noopener">faucet.solana.com</a>.</li>
+        <li>Cole o seu endereço, escolha a rede <b>devnet</b> e um valor (1 SOL basta).</li>
+        <li>Clique em <b>Confirm Airdrop</b>.</li>
+        <li>Volte à Phantom: em alguns segundos o saldo de teste aparece.</li>
+      </ol>
+      <p class="nota">O faucet aceita no máximo <b>2 pedidos a cada 8 horas</b> e às vezes pede login com uma conta do GitHub. Se ele recusar, mande o seu endereço para o time do SolShield, que envia SOL de teste para você.</p>
+    </section>
+
+    <section id="passo4">
+      <h2><span class="n">4</span>Fazer uma transferência protegida</h2>
+      <p>Agora você envia um pouco de SOL de teste e vê o SolShield analisar a transação antes de você assinar.</p>
+      <ol class="passos">
+        <li>No mesmo navegador, abra o <a href="/">SolShield</a>.</li>
+        <li>Procure o bloco <b>Transferência protegida · Devnet</b>.</li>
+        <li>Em "carteira de destino", cole este endereço de teste do time:
+          <div class="endereco">
+            <code id="endereco">BbTBNyukp6xP4JfdD3Mth99ufCWoCB55zZcTeNPgu3QQ</code>
+            <button class="copiar" id="copiar" type="button">Copiar</button>
+          </div>
+        </li>
+        <li>Em "SOL", digite <code>0.01</code>.</li>
+        <li>Clique em <b>Analisar antes de assinar</b>.</li>
+        <li>A Phantom abre pedindo para conectar ao site. Confirme: isso só mostra o seu endereço ao SolShield, sem mover nada.</li>
+        <li>Leia o resultado: a nota de risco de 0 a 100, o que a transação faz, os motivos e o saldo antes e depois.</li>
+        <li>Se a nota não for crítica, clique em <b>Assinar</b>. A Phantom abre de novo com os detalhes do envio; confirme em menos de um minuto.</li>
+        <li>Aparece a mensagem "Enviada na Devnet", com um link para ver a transação registrada na rede.</li>
+      </ol>
+      <p class="nota"><b>Para ver um bloqueio:</b> no campo "ID da transação", digite <code>tx_003</code> e clique em <b>Simular Assinatura</b>. É um cenário de demonstração de golpe: o SolShield dá nota 97 e trava o botão de assinar.</p>
+      <p class="nota"><b>Depois do teste,</b> conte ao time o que foi fácil, onde você travou e o que não entendeu. É isso que mais ajuda o projeto.</p>
+      <a class="cta" href="/">Abrir o SolShield</a>
+    </section>
+
+    <section id="ajuda">
+      <h2>Se algo der errado</h2>
+      <dl class="ajuda">
+        <div><dt>"Phantom não encontrada"</dt><dd>A extensão não está instalada neste navegador, ou o site foi aberto pelo celular. Abra pelo computador, no navegador onde instalou a Phantom.</dd></div>
+        <div><dt>"Saldo insuficiente"</dt><dd>A carteira ainda não recebeu SOL de teste, ou o modo de teste está desligado. Refaça os passos 2 e 3.</dd></div>
+        <div><dt>"Não foi possível consultar a rede Solana agora"</dt><dd>A rede de teste está lenta. Espere um minuto e tente de novo.</dd></div>
+        <div><dt>"Unexpected error" na Phantom</dt><dd>A confirmação demorou mais de um minuto e a transação venceu. Clique em Analisar de novo e confirme mais rápido.</dd></div>
+        <div><dt>O faucet recusa o pedido</dt><dd>O limite é de 2 pedidos a cada 8 horas. Peça SOL de teste ao time.</dd></div>
+      </dl>
+    </section>
+
+    <section id="glossario">
+      <h2>Glossário</h2>
+      <ul class="glossario">
+        <li><b>Carteira:</b> programa que guarda as suas moedas e pede a sua confirmação antes de cada envio.</li>
+        <li><b>Frase de recuperação:</b> as 12 palavras que dão acesso total à carteira. Nunca se compartilha.</li>
+        <li><b>Endereço:</b> o "número da conta" da carteira. Pode ser compartilhado, serve para receber.</li>
+        <li><b>Assinar:</b> autorizar uma transação. Depois de assinada, não dá para desfazer.</li>
+        <li><b>Devnet:</b> rede de teste da Solana, com moedas gratuitas e sem valor.</li>
+        <li><b>Nota de risco:</b> número de 0 a 100 que o SolShield calcula; a partir de 70 a transação é bloqueada.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    SolShield é um projeto em fase de testes, na rede devnet da Solana. Este guia não é recomendação de investimento.
+  </footer>
+</div>
+
+<script>
+  // Botão "Copiar" do endereço de teste. Se o navegador bloquear a cópia, o texto fica selecionado para Ctrl+C.
+  (function () {
+    var botao = document.getElementById("copiar"), alvo = document.getElementById("endereco");
+    function selecionar() { var r = document.createRange(); r.selectNodeContents(alvo); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); }
+    botao.addEventListener("click", function () {
+      var feito = function () { botao.textContent = "Copiado ✓"; setTimeout(function () { botao.textContent = "Copiar"; }, 2000); };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(alvo.textContent.trim()).then(feito, selecionar); }
+        else { selecionar(); if (document.execCommand("copy")) feito(); }
+      } catch (e) { selecionar(); }
+    });
+  })();
+</script>
+</body>
+</html>
