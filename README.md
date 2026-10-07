@@ -17,6 +17,7 @@ Ferramenta que **intercepta uma transação antes de o usuário assinar**, expli
 | `solana_rpc.py`: leitura de transação real pela Signature | ✅ Testada na Devnet |
 | Transferência protegida (análise antes da assinatura + reputação do destino) | ✅ Testada na Devnet com a Phantom, incluindo a assinatura |
 | `denuncias.py`: lista de sanções do OFAC, baixada ao vivo | ✅ Testada (bloqueio com nota 90) |
+| `explicacao.py`: explicação por IA | ⚠️ Testada com modelo simulado (15 testes). Falta testar com uma chave real (seção 11) |
 | Banco de dados | ❌ Não existe. É opcional (seção 7) |
 
 **Regra de ouro para a banca:** o que for demonstração tem que ser apresentado como demonstração. O frontend já avisa na tela ("detalhes ilustrativos", "API offline · modo demonstração"). Não digam que os cenários `tx_001–003` são análises reais.
@@ -28,12 +29,15 @@ Ferramenta que **intercepta uma transação antes de o usuário assinar**, expli
 ```
 hackathon/
 ├── index.html        Frontend completo (HTML + CSS + JS num arquivo só)
+├── guia.html         Guia para quem nunca usou cripto (abre em /guia)
 ├── app.py            Roda a API na sua máquina (python app.py)
 ├── api/
 │   └── index.py      A API Flask de verdade (a Vercel usa este arquivo)
 ├── risk_engine.py    Motor de risco: calcular_risco(id) -> dicionário
 ├── solana_rpc.py     Consulta a rede Solana: transações reais e reputação de carteiras
 ├── denuncias.py      Lista de endereços denunciados (OFAC ao vivo + lista do time)
+├── explicacao.py     Explicação em palavras simples, escrita por IA (opcional, seção 11)
+├── tests/            Testes automáticos (python -m unittest discover -s tests)
 ├── requirements.txt  Dependências Python (Flask, CORS, gunicorn)
 ├── vercel.json       Configuração do deploy na Vercel
 ├── .gitignore
@@ -324,3 +328,60 @@ Depois vêm até 2 minutos de perguntas da banca. Os slides precisam ser enviado
 - Os cenários `tx_001–003` são fictícios para demonstração; as regras de `solana_rpc.py` são heurísticas simples.
 - Colar uma Signature analisa uma transação **já confirmada** (`getTransaction`). A análise **antes da assinatura** existe só para transferências de SOL feitas pelo próprio site ("Transferência protegida"). Interceptar qualquer transação de qualquer site exigiria integração com a carteira: é próximo passo.
 - Os "fundos protegidos" do dashboard somam apenas as análises feitas **na sessão**.
+
+---
+
+## 11. Explicação por IA (opcional)
+
+Depois que as regras dão a nota, o site pode mostrar o cartão **"Em palavras simples"**, escrito por um modelo de linguagem. A IA só reescreve a análise: a nota de risco e o bloqueio continuam vindo das regras (`solana_rpc.py`), nunca do modelo.
+
+```
+index.html ──POST──▶ /api/explicar ──▶ explicacao.explicar(analise) ──▶ modelo de linguagem
+(envia a análise que acabou de receber)        │
+                                               ├─ confere a entrada (limpar_entrada)
+                                               ├─ exige a resposta no formato fixo (validar_saida)
+                                               └─ sem chave, sem rede ou formato errado → {"disponivel": false}
+```
+
+**Sem configurar nada, o site funciona igual a antes** e o cartão não aparece.
+
+### Ligar a IA
+
+Na Vercel: *Project → Settings → Environment Variables*. Configure UMA das opções e faça um novo deploy.
+
+| Opção | Variáveis |
+|---|---|
+| A. Anthropic | `ANTHROPIC_API_KEY` (obrigatória), `LLM_MODEL` (opcional) |
+| B. API compatível com a da OpenAI (OpenAI, Groq, Gemini, OpenRouter...) | `LLM_API_KEY` e `LLM_MODEL` (obrigatórias), `LLM_BASE_URL` (opcional, padrão `https://api.openai.com/v1`) |
+
+No computador, antes de `python app.py`:
+
+```bash
+export ANTHROPIC_API_KEY="sua-chave"      # Windows (PowerShell): $env:ANTHROPIC_API_KEY="sua-chave"
+```
+
+**Nunca coloque a chave no código nem no GitHub.** Ela fica só nas variáveis de ambiente.
+
+### Testar
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+São 15 testes que não usam internet (as chamadas ao modelo são simuladas). O GitHub roda os mesmos testes a cada push (`.github/workflows/testes.yml`); o resultado aparece na aba **Actions**.
+
+Para ver a resposta em inglês: `POST /api/explicar?idioma=en`.
+
+### Honestidade na banca
+- O texto do cartão é gerado por IA e pode conter imprecisões; por isso ele vem marcado como "escrito por IA" e nunca muda a nota.
+- Qualquer pessoa que acessar o site consome a sua cota de IA. Para a demonstração isso basta; antes de divulgar o link, coloque um limite de gastos na conta do provedor.
+
+---
+
+## 12. Guia para iniciantes (`/guia`)
+
+`guia.html` é uma página única, sem dependências, com o passo a passo para quem nunca usou cripto: instalar a Phantom, ligar o modo de teste, pegar SOL de teste e fazer a transferência protegida.
+
+- No ar: `https://SEU-SITE.vercel.app/guia` (se não abrir, tente `/guia.html`).
+- No computador: `http://localhost:5000/guia`.
+- O endereço de destino sugerido no passo 4 é a carteira de teste do time. Para trocar, procure `id="endereco"` no `guia.html`.
