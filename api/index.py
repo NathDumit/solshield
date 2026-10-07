@@ -28,6 +28,17 @@ def pagina():
     return send_file(caminho)
 
 
+@app.route("/guia")
+@app.route("/guia/")
+@app.route("/guia.html")
+def guia():
+    """Entrega o guia para quem nunca usou cripto (guia.html)."""
+    caminho = os.path.join(RAIZ, "guia.html")
+    if not os.path.exists(caminho):
+        return "guia.html não encontrado ao lado da API.", 404
+    return send_file(caminho)
+
+
 @app.route("/api/score/<id_transacao>")
 def score(id_transacao):
     return jsonify(calcular_risco(id_transacao))
@@ -51,6 +62,20 @@ def prever():
         return jsonify(prever_transferencia(de, para, valor))
     except Exception as erro:  # rede fora do ar, limite do RPC etc.
         return jsonify({"erro": "Não foi possível consultar a rede Solana agora (" + str(erro)[:80] + ")."})
+
+
+@app.route("/api/explicar", methods=["POST"])
+def explicar_rota():
+    """Explicação em linguagem simples, escrita por IA, para uma análise já feita.
+
+    Recebe no corpo (JSON) o resultado de /api/score ou /api/prever.
+    Opcional: ?idioma=en para a explicação em inglês (padrão: pt).
+    Sem chave de IA configurada, responde {"disponivel": false} e o site segue normal.
+    """
+    from explicacao import explicar
+    analise = request.get_json(silent=True)
+    idioma = (request.args.get("idioma") or "pt").strip().lower()
+    return jsonify(explicar(analise, idioma))
 
 
 @app.route("/api/health")

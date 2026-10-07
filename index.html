@@ -141,6 +141,9 @@
   .fee { display: flex; justify-content: space-between; margin-top: 10px; font-size: .82rem; color: var(--mut); }
   .fee b { color: var(--txt); font-family: var(--mono); font-weight: 600; }
   .ilus { font-size: .68rem; color: var(--mut); text-align: right; margin-top: 6px; }
+  .iaR { margin: 0 0 8px; line-height: 1.5; font-size: .95rem; }
+  .iaI { margin: 0; line-height: 1.5; font-size: .88rem; color: var(--mut); }
+  .iaA { margin: 10px 0 0; padding-left: 18px; line-height: 1.5; font-size: .88rem; }
   .actions { display: grid; grid-template-columns: 1fr 1.2fr; gap: 10px; }
   .actions button { padding: 14px; border-radius: 13px; font-weight: 800; font-size: .98rem; cursor: pointer; border: 1px solid var(--line); transition: .15s; }
   .rej { background: var(--panel2); color: var(--txt); }
@@ -453,6 +456,7 @@
   let carteira = null;   // endereço da Phantom conectada (null = carteira demo)
   const RPC_DEVNET = "https://api.devnet.solana.com";
   const API_PREVER = API.replace(/score\/?$/, "prever");
+  const API_EXPLICAR = API.replace(/score\/?$/, "explicar");
 
   function setApi(on) { $("pill").className = "pill " + (on ? "on" : "off"); $("pillTxt").textContent = on ? "API conectada · " + (LOCAL ? "localhost:5000" : location.host) : "API offline · modo demonstração"; }
 
@@ -616,6 +620,7 @@
             <div class="acao"><div class="ic">${T.icAcao}</div><div><p>${esc(acao)}</p><code>${esc(tipo)}</code></div></div></div>
           <div class="card"><h3>Por que ${status === "green" ? "é segura" : "o SolShield alertou"}</h3>
             <ul class="reasons">${motivos.map((m, i) => `<li class="${esc(m.nivel)}" style="animation-delay:${.15 + i * .18}s"><em>${NIVEL[m.nivel] || "INFO"}</em><span>${esc(m.texto)}</span></li>`).join("")}</ul></div>
+          <div class="card" id="iaCard" hidden></div>
           <div class="card"><h3>Seu saldo depois de assinar</h3>
             <div class="bal"><div><small>Antes</small><b>${antes.toFixed(2)} SOL</b></div><span class="arrow">→</span><div class="depois"><small>Depois</small><b>${depois.toFixed(2)} SOL</b></div></div>
             <div class="bbar"><i id="bb"></i></div>
@@ -630,6 +635,8 @@
       $("sign").onclick = previa ? () => assinarReal(previa) : () => { $("msg").textContent = "✔ Assinatura simulada com sucesso (protótipo)."; };
       pipe(0, status === "red" ? "red" : "fim");
       atualizarDash({ status, id, site, score, tipo, motivos, protegido: status === "red" ? Math.max(0, antes - depois) : 0 });
+      // Explicação por IA: só para análises que vieram da API (não para o modo offline nem para dados ilustrativos)
+      if (!demo && !ilus) explicarIA({ status, score, acao, permissao: tipo, taxa, saldo_antes: antes, saldo_depois: depois, motivos });
 
       if (status === "red") {
         await sleep(900);
@@ -643,6 +650,26 @@
     } finally {
       btn.disabled = false; btn.textContent = "🛡️ Simular Assinatura";
     }
+  }
+
+  // ---- Explicação por IA (opcional) ----
+  // A nota e o bloqueio já foram decididos pelas regras. A IA só reescreve a análise em palavras simples.
+  // Se a API não tiver chave de IA configurada, ou se a IA falhar, o cartão simplesmente não aparece.
+  let pedidoIA = 0;
+  async function explicarIA(analise) {
+    const meu = ++pedidoIA;
+    try {
+      const r = await fetch(API_EXPLICAR, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(analise) });
+      if (!r.ok) return;
+      const d = await r.json(), card = $("iaCard");
+      if (meu !== pedidoIA || !card || !d.disponivel || !d.explicacao) return;   // chegou atrasada ou sem IA
+      const e = d.explicacao, alertas = Array.isArray(e.alertas) ? e.alertas : [];
+      card.innerHTML = `<h3>Em palavras simples <span>escrito por IA</span></h3>
+        <p class="iaR">${esc(e.resumo)}</p><p class="iaI">${esc(e.impacto)}</p>
+        ${alertas.length ? `<ul class="iaA">${alertas.map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}
+        <div class="ilus">Texto escrito por IA a partir da análise acima. A nota de risco e o bloqueio vêm das regras, não da IA.</div>`;
+      card.hidden = false;
+    } catch (e) { /* sem IA, o resto da análise continua valendo */ }
   }
 
   // ---- Transferência protegida: análise ANTES da assinatura, com dados reais da Devnet ----
