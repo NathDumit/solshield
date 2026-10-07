@@ -68,7 +68,7 @@ index.html ──fetch──▶  /api/score/<id>  ──▶ api/index.py ──�
 - [ ] Subir o projeto no GitHub (seção 5.1)
 - [ ] Publicar na Vercel e testar a URL pública (seção 5)
 - [ ] Testar uma transação real da Solana (seção 6)
-- [ ] Ensaiar a apresentação duas vezes (seção 10)
+- [ ] Ensaiar a apresentação duas vezes
 
 ---
 
@@ -305,31 +305,7 @@ Tudo está em um arquivo só. Procurem por estes nomes (Ctrl+F):
 
 ---
 
-## 10. Apresentação
-
-### Antes de subir no palco
-- [ ] Site publicado abre e o indicador está 🟢
-- [ ] Rodei o **Modo apresentação** inteiro pelo menos uma vez
-- [ ] Tenho a página aberta em tela cheia (F11) e o som/notificações desligados
-- [ ] Plano B: `index.html` aberto localmente (funciona em modo demonstração sem internet)
-
-### Roteiro (5 minutos, no formato sugerido pelo edital)
-1. **O problema (~1 min):** "Golpes de *wallet drainer* esvaziam carteiras porque o usuário assina sem entender o que está assinando." Digam quem sofre com isso e como o time chegou no problema.
-2. **A solução (~1 min):** "O SolShield é o firewall da carteira: explica a transação em linguagem simples e dá um Risk Score com os motivos antes da assinatura."
-3. **Por que Solana? (~1 min):** na Solana a transação é confirmada em segundos e não tem volta, então a proteção precisa acontecer antes da assinatura. As instruções da transação são públicas e legíveis pelo RPC (transferências, `approve`, `setAuthority`), e é isso que o SolShield lê para calcular o risco. A taxa baixa permite simular e checar cada transação sem custo relevante para o usuário.
-4. **O MVP na prática (~1 min):** clique em **▶ Modo apresentação**: transação normal liberada → permissão ilimitada em alerta → ataque bloqueado com o painel vermelho. Mostre o dashboard (contadores, fundos protegidos, fatores de risco). Se a rede estiver estável, cole uma assinatura real da devnet.
-5. **O time e próximos passos (~1 min):** quem fez o quê. Próximos passos: simular a transação **antes** da assinatura (`simulateTransaction`), integrar na extensão da carteira e alimentar o score com listas de golpes denunciados.
-
-Depois vêm até 2 minutos de perguntas da banca. Os slides precisam ser enviados até **16h30**.
-
-### Honestidade na banca
-- Os cenários `tx_001–003` são fictícios para demonstração; as regras de `solana_rpc.py` são heurísticas simples.
-- Colar uma Signature analisa uma transação **já confirmada** (`getTransaction`). A análise **antes da assinatura** existe só para transferências de SOL feitas pelo próprio site ("Transferência protegida"). Interceptar qualquer transação de qualquer site exigiria integração com a carteira: é próximo passo.
-- Os "fundos protegidos" do dashboard somam apenas as análises feitas **na sessão**.
-
----
-
-## 11. Guia para iniciantes (`/guia`)
+## 10. Guia para iniciantes (`/guia`)
 
 `guia.html` é uma página única, sem dependências, com o passo a passo para quem nunca usou cripto: instalar a Phantom, ligar o modo de teste, pegar SOL de teste e fazer a transferência protegida.
 
