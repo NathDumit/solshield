@@ -1,4 +1,62 @@
-# 🛡️ SolShield · o firewall da carteira
+# 🛡️ SolShield · a wallet firewall for Solana
+
+**Live demo (Solana devnet):** https://solshield-seven.vercel.app · **Beginner guide (PT-BR):** https://solshield-seven.vercel.app/guia
+
+SolShield checks a Solana transaction **before you sign it**. It explains what the transaction does in plain Portuguese, gives a **risk score from 0 to 100** with the reasons behind it, and **blocks** transactions that look like scams.
+
+It is built for people making their first crypto transactions in Brazil, who meet wallet prompts that are technical and in English, and where one wrong signature can hand over a wallet.
+
+## What works today
+
+| Feature | Status |
+|---|---|
+| **Protected transfer:** analyzes a SOL transfer *before* signing, using live devnet data, then signs and sends it with Phantom | ✅ Working on devnet |
+| **Destination reputation:** wallet age, who funded the wallet, prior history between sender and receiver | ✅ Working on devnet |
+| **Sanctions screening:** checks the destination against the US Treasury OFAC list of sanctioned Solana addresses, downloaded live | ✅ Working |
+| **Transaction analysis by signature:** fetches a confirmed transaction and scores its instructions (ownership changes, unlimited approvals, draining most of the balance, unknown programs) | ✅ Working on devnet |
+| **Demo scenarios** `tx_001`, `tx_002`, `tx_003` | ⚠️ Simulated data, for demonstration only |
+
+**Current limitation:** pre-signing protection covers SOL transfers made through the SolShield page. Protecting transactions started on other sites requires wallet integration, which is the next step.
+
+## How the score works
+
+The score comes from **transparent rules**, not from a black box. Each finding adds or removes points and is shown to the user as a reason. A score of 70 or more is **critical** and disables the sign button; 35 to 69 asks for attention.
+
+| Check | Effect on the score |
+|---|---|
+| Destination is on the OFAC sanctions list or the team's report list | +80 |
+| Transfer sends more than 90% of the balance | +70 |
+| Destination is a program, not a person's wallet | +40 |
+| The wallet that funded the destination is on a report list | +40 |
+| Destination wallet has never been used | +25 |
+| Destination wallet was created less than 24 hours ago | +15 |
+| Sender and receiver have transacted before | −15 |
+
+The full rule set is in [`solana_rpc.py`](solana_rpc.py).
+
+## Stack
+
+- **Frontend:** a single `index.html` with plain HTML, CSS and JavaScript (no framework). Phantom wallet connection, base58 encoding and transaction building are written by hand.
+- **Backend:** Python and Flask (`api/index.py`), deployed on Vercel as a serverless function.
+- **Solana:** JSON-RPC calls to devnet (`getTransaction`, `getBalance`, `getAccountInfo`, `getSignaturesForAddress`), using only the Python standard library.
+- **Tests:** `python -m unittest discover -s tests`, run on every push with GitHub Actions.
+
+## Run locally
+
+```bash
+pip install -r requirements.txt
+python app.py          # http://localhost:5000
+```
+
+## Background
+
+Development started on October 3, 2026, at the 3rd WoHackathon in Rio de Janeiro, where SolShield placed second.
+
+---
+
+*The detailed project guide below is in Portuguese.*
+
+# 🇧🇷 Guia do projeto (português)
 
 Ferramenta que **intercepta uma transação antes de o usuário assinar**, explica em linguagem simples o que ela faz, dá um **Risk Score (0–100)** com os motivos e **bloqueia** as perigosas. Inclui um dashboard de proteção e um modo de apresentação.
 
