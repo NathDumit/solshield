@@ -78,7 +78,9 @@ def calcular_risco(id_transacao):
             return _desconhecida("Não foi possível consultar a rede Solana agora (" + str(erro)[:80] + ").")
         if resultado:
             return resultado
-        return _desconhecida("Transação não encontrada em " + RPC_URL + ". Confira se a rede (devnet/mainnet) está certa.")
+        # Nunca mostrar a URL do RPC: ela pode conter a chave (Helius, QuickNode etc.)
+        rede = "mainnet" if "mainnet" in RPC_URL else "devnet" if "devnet" in RPC_URL else "rede configurada"
+        return _desconhecida("Transação não encontrada na " + rede + ". Confira se a rede (devnet/mainnet) está certa.")
 
     if _parece_endereco(id_transacao.strip()):
         return _desconhecida("Isso parece um endereço de carteira, não uma transação. Cole a Signature da transação (cerca de 88 caracteres).")

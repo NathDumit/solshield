@@ -159,6 +159,10 @@ def analisar(assinatura):
 # ---------------------------------------------------------------------------
 SYSTEM_PROGRAM = "11111111111111111111111111111111"
 TAXA_LAMPORTS = 5000  # taxa base de uma transferência simples
+# Mínimo que uma conta simples (sem dados) precisa manter para existir na rede.
+# Uma carteira nova não pode receber menos que isso, e a carteira de origem não pode
+# ficar com menos que isso (ou fica com zero). Valor fixo da Solana para contas de 0 byte.
+MINIMO_ALUGUEL_LAMPORTS = 890_880
 
 
 def parece_endereco(texto):
@@ -173,7 +177,11 @@ def _denunciadas():
     try:
         from denuncias import todas
         return todas()
-    except Exception:
+    except Exception as e:
+        # Never break the analysis, but do not fail silently either: without this list the
+        # "reported address" check is skipped and the result looks cleaner than it should.
+        import logging
+        logging.getLogger("solshield").warning("lista de endereços denunciados indisponível (%s): checagem 1 desligada", e)
         return {}
 
 
@@ -234,6 +242,8 @@ def _reputacao(origem, destino, historico):
 def prever(origem, destino, valor_sol):
     """Risco de enviar valor_sol de origem para destino, ANTES de assinar."""
     lamports = int(round(valor_sol * 1e9))
+    if lamports < 1:
+        return {"erro": "O valor é pequeno demais: o menor valor possível é 0,000000001 SOL."}
     saldo = int((_rpc("getBalance", [origem]).get("result") or {}).get("value") or 0)
     conta = (_rpc("getAccountInfo", [destino, {"encoding": "base64"}]).get("result") or {}).get("value")
     historico = _rpc("getSignaturesForAddress", [destino, {"limit": LIMITE_HISTORICO}]).get("result") or []
@@ -243,6 +253,15 @@ def prever(origem, destino, valor_sol):
 
     if lamports + TAXA_LAMPORTS > saldo:
         return {"erro": f"Saldo insuficiente: a carteira tem {saldo / 1e9:.4f} SOL."}
+
+    minimo_sol = MINIMO_ALUGUEL_LAMPORTS / 1e9
+    resto = saldo - lamports - TAXA_LAMPORTS
+    if 0 < resto < MINIMO_ALUGUEL_LAMPORTS:
+        return {"erro": f"Depois deste envio sobrariam {resto / 1e9:.6f} SOL na sua carteira, abaixo do mínimo de "
+                        f"{minimo_sol:.8f} SOL que a rede exige. Envie um pouco menos."}
+    if not conta and lamports < MINIMO_ALUGUEL_LAMPORTS:
+        return {"erro": f"A carteira de destino ainda não existe na rede, e ela só pode ser criada com pelo menos "
+                        f"{minimo_sol:.8f} SOL. Envie esse valor ou mais."}
 
     proporcao = lamports / saldo if saldo else 1
     if proporcao >= 0.9:
