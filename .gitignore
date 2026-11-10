@@ -1,2 +1,5 @@
 __pycache__/
 .env
+
+# Claude Code (configurações locais podem conter segredos)
+.claude/
