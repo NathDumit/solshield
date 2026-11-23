@@ -3,3 +3,11 @@ __pycache__/
 
 # Claude Code (configurações locais podem conter segredos)
 .claude/
+
+# Segredos e ambientes locais
+.env.*
+!.env.example
+*.pem
+*.key
+.venv/
+venv/
