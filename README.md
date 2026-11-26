@@ -370,3 +370,5 @@ Tudo está em um arquivo só. Procurem por estes nomes (Ctrl+F):
 - No ar: `https://SEU-SITE.vercel.app/guia` (se não abrir, tente `/guia.html`).
 - No computador: `http://localhost:5000/guia`.
 - O endereço de destino sugerido no passo 4 é a carteira de teste do time. Para trocar, procure `id="endereco"` no `guia.html`.
+
+road to glory!
